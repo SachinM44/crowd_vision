@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CrowdVision — Zone Brain</title>
+  <link rel="stylesheet" href="/static/vendor/leaflet.css" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="dot" id="conn-dot"></span>
+      <b>CrowdVision</b><span class="sub">Zone Brain · edge crowd safety</span>
+    </div>
+    <div class="advisory" id="advisory" title="click for Hindi / Kannada">
+      <span class="adv-label">ADVISORY</span>
+      <span id="advisory-text">— venue tier idle —</span>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+  </header>
+
+  <div id="chips" class="chips" aria-label="camera feed health"></div>
+
+  <main>
+    <section class="map-col">
+      <div id="map"></div>
+      <div id="gate-panel" class="gate-panel" aria-label="per-gate override"></div>
+    </section>
+    <section class="log-col">
+      <h2>Decision log <span class="hint">full provenance · no black box</span></h2>
+      <div id="log" class="log"></div>
+    </section>
+  </main>
+
+  <script src="/static/vendor/leaflet.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

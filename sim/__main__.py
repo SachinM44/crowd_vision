@@ -33,6 +33,26 @@ def _dash_url() -> str:
     return f"http://localhost:{port}"
 
 
+def _start_dashboard(broker_host: str, broker_port: int):
+    """Load zone-brain/server/app.py (hyphenated dir, not importable) and serve
+    it in a daemon thread so `sim --all` is truly one command."""
+    import importlib.util
+    import threading
+    app_path = config.repo_root() / "zone-brain" / "server" / "app.py"
+    spec = importlib.util.spec_from_file_location("cv_dashboard_app", app_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    try:
+        d = config.devices().get("dashboard", {})
+    except Exception:  # noqa: BLE001
+        d = {}
+    host, port = d.get("host", "0.0.0.0"), int(d.get("port", 8000))
+    threading.Thread(
+        target=lambda: mod.serve(host, port, broker_host, broker_port, in_thread=True),
+        name="dashboard", daemon=True).start()
+    return port
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="crowdvision.sim", description=__doc__)
     ap.add_argument("--all", action="store_true", help="full simulated mesh")
@@ -40,6 +60,8 @@ def main(argv=None) -> int:
     ap.add_argument("--gate", action="store_true", help="virtual gate only")
     ap.add_argument("--officer", action="store_true", help="virtual officer only")
     ap.add_argument("--zones", action="store_true", help="venue-tier sim zones only")
+    ap.add_argument("--no-dashboard", action="store_true",
+                    help="do not launch the dashboard with --all")
     ap.add_argument("--seconds", type=float, default=0.0,
                     help="auto-stop after N seconds (0 = run forever)")
     args = ap.parse_args(argv)
@@ -75,9 +97,18 @@ def main(argv=None) -> int:
         from . import replay
         comps.append(("decider", replay.run(host, port)))
 
+    dashboard_up = False
+    if args.all and not args.no_dashboard:
+        try:
+            _start_dashboard(host, port)
+            dashboard_up = True
+        except Exception as exc:  # noqa: BLE001
+            print(f"[sim] dashboard failed to start ({exc}) — run it separately: "
+                  f"python zone-brain/server/app.py")
+
     started = ", ".join(name for name, _ in comps)
     print(f"[sim] running: {started}")
-    if args.all or args.feeds:
+    if dashboard_up:
         print(f"[sim] open the dashboard: {_dash_url()}")
     print("[sim] Ctrl+C to stop.")
 
