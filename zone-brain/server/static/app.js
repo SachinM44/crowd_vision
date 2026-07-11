@@ -12,6 +12,7 @@ const OVERRIDE_ACTIONS = ["OPEN", "DIVERT_LEFT", "CLOSE_DIVERT_LEFT", "SAFE_FLAS
 
 let CFG = null, map = null;
 const zoneLayers = {}, gateLayers = {}, gateState = {}, officerLayers = {};
+const zoneHist = {};   // zone_id -> recent density values (for sparklines)
 
 const $ = (id) => document.getElementById(id);
 const XY = (x, y) => L.latLng(y, x);   // CRS.Simple: lat=y, lng=x
@@ -116,6 +117,7 @@ function applySnapshot(d) {
   Object.values(s.gates || {}).forEach(updateGate);
   Object.values(s.officers || {}).forEach(updateOfficer);
   if (s.advisory && s.advisory.en) updateAdvisory(s.advisory);
+  if (s.venue) updateVenue(s.venue);
   (d.log || []).forEach((e) => addLog(e.type, e.payload, e.ts));
 }
 
@@ -126,6 +128,7 @@ function onMsg(m) {
     case "camera.health": updateCamera(p); break;
     case "gate.telemetry": updateGate(p); break;
     case "officer.beacon": updateOfficer(p); break;
+    case "venue.state": updateVenue(p); break;
     case "venue.advisory": updateAdvisory(p); addLog(m.type, p, m.ts); break;
     case "gate.command": case "incident.report": case "dispatch.order":
       addLog(m.type, p, m.ts); break;
@@ -141,6 +144,12 @@ function updateZone(p) {
   const cam = p.camera_id ? ` ← ${p.camera_id}` : "";
   const tag = p.risk === "UNKNOWN" ? "UNKNOWN (no view)" : p.risk;
   layer.setTooltipContent(`Zone ${p.zone_id}${cam} · ${d}/m² · ${tag}`);
+  if (p.density_per_m2 != null) {
+    const h = (zoneHist[p.zone_id] = zoneHist[p.zone_id] || []);
+    h.push(p.density_per_m2);
+    if (h.length > 40) h.shift();
+    renderTrends();
+  }
 }
 
 function updateCamera(p) {
@@ -185,6 +194,51 @@ $("advisory").onclick = () => {
   if (!advAll) return;
   $("advisory-text").textContent = `EN: ${advAll.en}   ·   HI: ${advAll.hi || "—"}   ·   KN: ${advAll.kn || "—"}`;
 };
+
+// --- venue tier view: 1 real + 2 SIM zones + uplink-cut indicator ---
+function updateVenue(p) {
+  const box = $("venue");
+  if (!box || !p) return;
+  const uplink = (p.uplink || "online").toLowerCase();
+  const rows = (p.zones || []).map((z) => {
+    const c = RISK_COLOR[z.risk] || RISK_COLOR.UNKNOWN;
+    const d = z.density_per_m2 == null ? "?" : z.density_per_m2;
+    const sim = z.simulated ? `<span class="sim-chip">SIM</span>` : "";
+    return `<div class="vrow"><span class="rdot" style="background:${c}"></span>` +
+           `<span class="vname">${z.zone_id}</span><span class="vden">${d}/m²</span>${sim}</div>`;
+  }).join("");
+  box.innerHTML =
+    `<h4>VENUE TIER · Cloud AI 100 <span class="uplink-pill ${uplink}">${uplink.toUpperCase()}</span></h4>` +
+    (uplink === "offline" ? `<div class="offline-banner">⚠ OFFLINE — zones autonomous</div>` : "") +
+    rows;
+}
+
+// --- per-zone density sparklines (zero-dependency SVG) ---
+function sparkline(values, w = 92, h = 22) {
+  if (!values || values.length < 2) return `<svg class="spark" width="${w}" height="${h}"></svg>`;
+  const red = (CFG && CFG.bands && CFG.bands.red_at) || 5;
+  const amber = (CFG && CFG.bands && CFG.bands.amber_at) || 3;
+  const max = Math.max(red, ...values);
+  const step = w / (values.length - 1);
+  const pts = values.map((v, i) =>
+    `${(i * step).toFixed(1)},${(h - (v / max) * (h - 3) - 1).toFixed(1)}`).join(" ");
+  const last = values[values.length - 1];
+  const col = last >= red ? RISK_COLOR.RED : last >= amber ? RISK_COLOR.AMBER : RISK_COLOR.GREEN;
+  return `<svg class="spark" width="${w}" height="${h}">` +
+         `<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5"/></svg>`;
+}
+
+function renderTrends() {
+  const box = $("trends");
+  if (!box) return;
+  const ids = Object.keys(zoneHist).sort();
+  if (!ids.length) { box.innerHTML = ""; return; }
+  box.innerHTML = `<h4>ZONE TRENDS</h4>` + ids.map((zid) => {
+    const hist = zoneHist[zid];
+    const last = hist[hist.length - 1];
+    return `<div class="trow"><span class="tden">${zid} · ${last}/m²</span>${sparkline(hist)}</div>`;
+  }).join("");
+}
 
 function fmtTime(ts) {
   if (!ts) return "--:--:--";
