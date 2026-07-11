@@ -62,8 +62,20 @@ def build_config() -> dict:
     gates = [{"id": gid, "pos": _centroid(pts)} for gid, pts in gate_pts.items()]
     if minx > maxx:  # no polygons
         minx, miny, maxx, maxy = 0, 0, 16, 10
+    # Camera preview URLs (operator sees the live feeds locally). Only IP Webcam
+    # style snapshot sources get a browser-loadable thumbnail.
+    cam_list = []
+    for cid, c in config.cameras().get("cameras", {}).items():
+        transport = (c.get("transport") or "").lower()
+        url = c.get("url")
+        shot = None
+        if transport in ("ipwebcam", "snapshot") or \
+                (isinstance(url, str) and url.endswith(".jpg")):
+            shot = url if (isinstance(url, str) and url.endswith(".jpg")) \
+                else f"{str(url).rstrip('/')}/shot.jpg"
+        cam_list.append({"id": cid, "zone_id": c.get("zone_id"), "shot_url": shot})
     return {"bounds": [[minx, miny], [maxx, maxy]], "zones": out_zones,
-            "gates": gates, "officer_bbox": OFFICER_BBOX,
+            "gates": gates, "officer_bbox": OFFICER_BBOX, "cameras": cam_list,
             "bands": {"amber_at": bands.get("amber_at", 3.0),
                       "red_at": bands.get("red_at", 5.0)}}
 

@@ -28,6 +28,7 @@ async function init() {
   CFG = await (await fetch("/api/config")).json();
   buildMap();
   buildGatePanel();
+  buildCamPreviews();
   tickClock();
   connectWS();
 }
@@ -40,7 +41,8 @@ function buildMap() {
   CFG.zones.forEach((z) => {
     const pts = z.polygon.map(([x, y]) => XY(x, y));
     const poly = L.polygon(pts, { color: "#334155", weight: 1.5, fillColor: RISK_COLOR.UNKNOWN, fillOpacity: 0.35 }).addTo(map);
-    poly.bindTooltip(`${z.id}`, { permanent: true, direction: "center", className: "zone-label" });
+    const cam = z.camera_id ? ` ← ${z.camera_id}` : " (no camera)";
+    poly.bindTooltip(`Zone ${z.id}${cam}`, { permanent: true, direction: "center", className: "zone-label" });
     zoneLayers[z.id] = poly;
   });
   CFG.gates.forEach((g) => {
@@ -51,6 +53,25 @@ function buildMap() {
     gateLayers[g.id] = m;
   });
   map.fitBounds([sw, ne], { padding: [30, 30] });
+}
+
+function buildCamPreviews() {
+  const box = document.getElementById("cams");
+  if (!box) return;
+  box.innerHTML = "";
+  (CFG.cameras || []).filter((c) => c.shot_url).forEach((c) => {
+    const fig = document.createElement("figure");
+    fig.className = "cam";
+    fig.innerHTML = `<img alt="${c.id}"><figcaption>${c.id}</figcaption>` +
+                    `<span class="zbadge">Zone ${c.zone_id || "?"}</span>`;
+    box.appendChild(fig);
+    const img = fig.querySelector("img");
+    const refresh = () => {
+      img.src = c.shot_url + (c.shot_url.includes("?") ? "&" : "?") + "t=" + Date.now();
+    };
+    refresh();
+    setInterval(refresh, 1500);   // live preview; each phone frame is one GET
+  });
 }
 
 function buildGatePanel() {
@@ -117,7 +138,9 @@ function updateZone(p) {
   const color = RISK_COLOR[p.risk] || RISK_COLOR.UNKNOWN;
   layer.setStyle({ fillColor: color, fillOpacity: 0.45, color });
   const d = p.density_per_m2 == null ? "?" : p.density_per_m2;
-  layer.setTooltipContent(`${p.zone_id} · ${d}/m² · ${p.risk}`);
+  const cam = p.camera_id ? ` ← ${p.camera_id}` : "";
+  const tag = p.risk === "UNKNOWN" ? "UNKNOWN (no view)" : p.risk;
+  layer.setTooltipContent(`Zone ${p.zone_id}${cam} · ${d}/m² · ${tag}`);
 }
 
 function updateCamera(p) {

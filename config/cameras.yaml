@@ -17,15 +17,15 @@ cameras:
     # Identity homography until calibrated (image px == floor m placeholder).
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
-  c1:                           # Zone B wide — the judges (live)
-    transport: rtsp
-    url: "rtsp://PHONE_C1_IP:8080/h264_ulaw.sdp"   # TODO: set at check-in
+  c1:                           # Samsung phone -> Zone B (live, IP Webcam snapshot)
+    transport: ipwebcam         # polls http://IP:8080/shot.jpg (robust over slow links)
+    url: "http://10.149.252.145:8080"   # session-specific LAN IP — update per venue
     zone_id: B
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
-  c2:
-    transport: rtsp
-    url: "rtsp://PHONE_C2_IP:8080/h264_ulaw.sdp"
+  c2:                           # Nothing phone -> Zone C (live, IP Webcam snapshot)
+    transport: ipwebcam
+    url: "http://10.98.184.158:8080"
     zone_id: C
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 import cv2
@@ -66,34 +67,80 @@ class MotionDetector:
         self.empty_ratio = empty_ratio
         self.recal_after = recal_after
         self._low_streak = 0
+        self._high_streak = 0
 
     def _prep(self, frame):
         g = cv2.cvtColor(cv2.resize(frame, (320, 240)), cv2.COLOR_BGR2GRAY)
         return cv2.GaussianBlur(g, (21, 21), 0)
 
-    def occupancy(self, frame) -> tuple[float, float]:
+    def occupancy(self, frame) -> tuple[float, float, bool]:
+        """Return (occupancy_ratio, latency_ms, blocked). `blocked` = the lens is
+        covered / the view is dark or uniform (we can't see the zone)."""
         t0 = time.perf_counter()
         g = self._prep(frame)
         ms = lambda: round((time.perf_counter() - t0) * 1000, 1)  # noqa: E731
+        blocked = bool(g.mean() < 15 or g.std() < 8)   # covered lens / blank wall
         if self.ref is None:
             self.ref = g.astype("float32")
             self.seen = 1
-            return 0.0, ms()                       # no spurious RED on frame 1
-        if self.seen < self.warmup:                # build the empty-scene baseline
+            return 0.0, ms(), blocked                  # no spurious RED on frame 1
+        if self.seen < self.warmup:                    # build the empty-scene baseline
             cv2.accumulateWeighted(g, self.ref, 0.25)
             self.seen += 1
-            return 0.0, ms()
+            return 0.0, ms(), blocked
         ref8 = cv2.convertScaleAbs(self.ref)
         diff = cv2.absdiff(g, ref8)
         _, th = cv2.threshold(diff, self.thr, 255, cv2.THRESH_BINARY)
         ratio = float(np.count_nonzero(th)) / th.size
-        if ratio < self.empty_ratio:               # scene empty -> refresh baseline
+        if ratio < self.empty_ratio:                   # scene empty -> slow refresh
             self._low_streak += 1
+            self._high_streak = 0
             if self._low_streak >= self.recal_after:
                 cv2.accumulateWeighted(g, self.ref, 0.05)
-        else:
+        elif ratio > 0.85:                             # stuck ~full -> stale baseline
+            self._high_streak += 1
             self._low_streak = 0
-        return min(ratio, 1.0), ms()
+            if self._high_streak >= 12:                # (~3-6 s) re-learn the scene
+                self.ref = g.astype("float32")
+                self._high_streak = 0
+        else:
+            self._low_streak = self._high_streak = 0
+        return min(ratio, 1.0), ms(), blocked
+
+
+class _CapSource:
+    """OpenCV VideoCapture source (webcam / rtsp / file)."""
+    def __init__(self, cap):
+        self.cap = cap
+
+    def read(self):
+        return self.cap.read() if self.cap is not None else (False, None)
+
+    def release(self):
+        try:
+            self.cap.release()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+class _SnapshotSource:
+    """Poll a still-JPEG URL (e.g. IP Webcam's /shot.jpg). Robust over flaky/slow
+    links — each frame is an independent HTTP GET with its own timeout, so a
+    dropped frame never hangs the loop."""
+    def __init__(self, shot_url, timeout=4.0):
+        self.url = shot_url
+        self.timeout = timeout
+
+    def read(self):
+        try:
+            data = urllib.request.urlopen(self.url, timeout=self.timeout).read()
+            img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+            return (img is not None), img
+        except Exception:  # noqa: BLE001
+            return False, None
+
+    def release(self):
+        pass
 
 
 class LiveFeed:
@@ -113,6 +160,14 @@ class LiveFeed:
         self._min_dt = 1 / 12.0 if transport in ("file",) else 0.01
 
     def _open(self):
+        transport = (self.profile.get("transport") or "").lower()
+        url = self.profile.get("url")
+        # Snapshot-polling mode for IP Webcam-style phones (robust over slow links).
+        if transport in ("snapshot", "ipwebcam") or \
+                (isinstance(url, str) and url.endswith(".jpg")):
+            shot = url if (isinstance(url, str) and url.endswith(".jpg")) \
+                else f"{str(url).rstrip('/')}/shot.jpg"
+            return _SnapshotSource(shot)
         arg, transport = _source(self.profile)
         if transport == "webcam" and sys.platform == "win32":
             cap = cv2.VideoCapture(arg, cv2.CAP_DSHOW)
@@ -122,7 +177,7 @@ class LiveFeed:
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         except Exception:  # noqa: BLE001
             pass
-        return cap
+        return _CapSource(cap)
 
     def _publish_lost(self):
         self.node.publish(M.topic_camera_health(self.camera_id), M.T_CAMERA_HEALTH,
@@ -170,10 +225,33 @@ class LiveFeed:
             last_frame = now
             frames += 1
             time.sleep(self._min_dt)       # pace files; negligible for live streams
-            occ, det_ms = self.det.occupancy(frame)
+            occ, det_ms, blocked = self.det.occupancy(frame)
             if now - last_pub >= 1.0:
                 fps = frames / max(now - last_pub, 1e-6)
                 frames = 0
+                transport = self.profile.get("transport", "?")
+                if blocked:
+                    # Covered/dark lens: we CAN'T SEE the zone -> UNKNOWN (grey),
+                    # never a guessed RED (Hard Rule 7 spirit). Not a crush.
+                    self.node.publish(
+                        M.topic_zone_density(self.zone_id), M.T_ZONE_DENSITY,
+                        {"zone_id": self.zone_id, "camera_id": self.camera_id,
+                         "transport": transport, "fps_effective": round(fps, 1),
+                         "people_count": None, "area_m2": self.area_m2,
+                         "density_per_m2": None, "trend_per_min": 0.0,
+                         "ttt_red_s": None, "risk": M.RISK_UNKNOWN,
+                         "model_id": "motion-occupancy",
+                         "inference_backend": M.BACKEND_CPU, "latency_ms": det_ms}, qos=0)
+                    self.node.publish(
+                        M.topic_camera_health(self.camera_id), M.T_CAMERA_HEALTH,
+                        {"camera_id": self.camera_id, "transport": transport,
+                         "resolution": f"{frame.shape[1]}x{frame.shape[0]}",
+                         "fps_effective": round(fps, 1), "drop_rate_pct": 0.0,
+                         "last_frame_age_ms": int((now - last_frame) * 1000),
+                         "state": M.FEED_DEGRADED, "reconnects": self.reconnects,
+                         "note": "view blocked/dark"}, qos=0)
+                    last_pub = now
+                    continue
                 density = round(occ * DENSITY_AT_FULL, 2)
                 trend = round((density - prev_density) * 60.0, 2)
                 prev_density = density
@@ -183,8 +261,7 @@ class LiveFeed:
                 self.node.publish(
                     M.topic_zone_density(self.zone_id), M.T_ZONE_DENSITY,
                     {"zone_id": self.zone_id, "camera_id": self.camera_id,
-                     "transport": self.profile.get("transport", "?"),
-                     "fps_effective": round(fps, 1),
+                     "transport": transport, "fps_effective": round(fps, 1),
                      "people_count": int(round(density * self.area_m2)),
                      "area_m2": self.area_m2, "density_per_m2": density,
                      "trend_per_min": trend, "ttt_red_s": ttt, "risk": risk,
@@ -193,8 +270,7 @@ class LiveFeed:
                      "inference_backend": M.BACKEND_CPU, "latency_ms": det_ms}, qos=0)
                 self.node.publish(
                     M.topic_camera_health(self.camera_id), M.T_CAMERA_HEALTH,
-                    {"camera_id": self.camera_id,
-                     "transport": self.profile.get("transport", "?"),
+                    {"camera_id": self.camera_id, "transport": transport,
                      "resolution": f"{frame.shape[1]}x{frame.shape[0]}",
                      "fps_effective": round(fps, 1), "drop_rate_pct": 0.0,
                      "last_frame_age_ms": int((now - last_frame) * 1000),
