@@ -105,6 +105,14 @@ def create_app(broker_host: str = "127.0.0.1", broker_port: int = 1883) -> FastA
     app = FastAPI(title="CrowdVision Dashboard", lifespan=lifespan)
     app.state.bridge = bridge
 
+    @app.middleware("http")
+    async def no_cache(request, call_next):
+        # Dashboard assets change often during the hack — never let the browser
+        # serve a stale index.html / app.js / style.css.
+        resp = await call_next(request)
+        resp.headers["Cache-Control"] = "no-store, must-revalidate"
+        return resp
+
     @app.get("/")
     async def index():
         return FileResponse(STATIC / "index.html")

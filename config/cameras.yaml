@@ -29,9 +29,9 @@ cameras:
     zone_id: C
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
-  c3:
-    transport: rtsp
-    url: "rtsp://PHONE_C3_IP:8080/h264_ulaw.sdp"
+  c3:                           # Laptop webcam -> Zone D (live)
+    transport: webcam
+    url: 0                       # 0 = default laptop camera
     zone_id: D
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
