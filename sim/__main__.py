@@ -43,6 +43,16 @@ def _load_venue_tier():
     return mod
 
 
+def _load_live_capture():
+    """Load tools/live_capture.py (real-camera bridge) via importlib."""
+    import importlib.util
+    path = config.repo_root() / "tools" / "live_capture.py"
+    spec = importlib.util.spec_from_file_location("cv_live_capture", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def _start_dashboard(broker_host: str, broker_port: int):
     """Load zone-brain/server/app.py (hyphenated dir, not importable) and serve
     it in a daemon thread so `sim --all` is truly one command."""
@@ -70,13 +80,20 @@ def main(argv=None) -> int:
     ap.add_argument("--gate", action="store_true", help="virtual gate only")
     ap.add_argument("--officer", action="store_true", help="virtual officer only")
     ap.add_argument("--zones", action="store_true", help="venue-tier sim zones only")
+    ap.add_argument("--live", action="store_true",
+                    help="drive zones from REAL cameras (config/cameras.yaml) instead "
+                         "of simulated feeds; runs broker+dashboard+gate+officer+decider")
+    ap.add_argument("--surge", action="store_true",
+                    help="with --live: also run the scripted surge on one zone so the "
+                         "kill-shot still fires while real cameras stay calm")
+    ap.add_argument("--surge-zone", default="A", help="zone for --surge (default A)")
     ap.add_argument("--no-dashboard", action="store_true",
-                    help="do not launch the dashboard with --all")
+                    help="do not launch the dashboard with --all / --live")
     ap.add_argument("--seconds", type=float, default=0.0,
                     help="auto-stop after N seconds (0 = run forever)")
     args = ap.parse_args(argv)
 
-    if not any([args.all, args.feeds, args.gate, args.officer, args.zones]):
+    if not any([args.all, args.feeds, args.gate, args.officer, args.zones, args.live]):
         args.all = True  # default
 
     host, port = _broker_hostport()
@@ -87,28 +104,46 @@ def main(argv=None) -> int:
     print(f"[sim] broker ready on {host}:{port}")
 
     comps = []
-    # Import lazily so single-component runs don't import everything.
-    if args.all or args.gate:
-        from . import sim_gate
+    if args.live:
+        # REAL cameras drive the zones; keep the full react/inform loop.
+        from . import sim_gate, sim_officer, replay
         comps.append(("gate", sim_gate.run(host, port)))
-    if args.all or args.officer:
-        from . import sim_officer
         comps.append(("officer", sim_officer.run(host, port)))
-    if args.all or args.zones:
         try:
             vt = _load_venue_tier()
             comps.append(("venue-tier", vt.run(host, port)))
         except Exception as exc:  # noqa: BLE001
             print(f"[sim] venue tier failed to start ({exc}) -- skipping")
-    if args.all or args.feeds:
-        from . import sim_feeds
-        comps.append(("feeds", sim_feeds.run(host, port)))
-    if args.all:
-        from . import replay
         comps.append(("decider", replay.run(host, port)))
+        if args.surge:
+            from . import sim_feeds
+            comps.append((f"surge:{args.surge_zone}",
+                          sim_feeds.run_surge(host, port, args.surge_zone)))
+        live = _load_live_capture()
+        comps.append(("live-capture", live.run(host, port)))
+    else:
+        # Import lazily so single-component runs don't import everything.
+        if args.all or args.gate:
+            from . import sim_gate
+            comps.append(("gate", sim_gate.run(host, port)))
+        if args.all or args.officer:
+            from . import sim_officer
+            comps.append(("officer", sim_officer.run(host, port)))
+        if args.all or args.zones:
+            try:
+                vt = _load_venue_tier()
+                comps.append(("venue-tier", vt.run(host, port)))
+            except Exception as exc:  # noqa: BLE001
+                print(f"[sim] venue tier failed to start ({exc}) -- skipping")
+        if args.all or args.feeds:
+            from . import sim_feeds
+            comps.append(("feeds", sim_feeds.run(host, port)))
+        if args.all:
+            from . import replay
+            comps.append(("decider", replay.run(host, port)))
 
     dashboard_up = False
-    if args.all and not args.no_dashboard:
+    if (args.all or args.live) and not args.no_dashboard:
         try:
             _start_dashboard(host, port)
             dashboard_up = True

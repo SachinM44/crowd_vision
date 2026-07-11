@@ -123,3 +123,57 @@ def run(host="127.0.0.1", port=1883) -> SimFeeds:
     node = mqttc.MqttNode("sim-feeds", host=host, port=port).connect()
     time.sleep(0.2)
     return SimFeeds(node).start()
+
+
+class SurgeZone:
+    """Publishes ONLY one zone's scripted surge — the deterministic kill-shot.
+
+    Used in --live mode so the gate demo still fires even when the real cameras
+    are (correctly) calm/GREEN. This is the plan's hybrid: real live zones + one
+    scripted surge clip zone. Badged sim-replay (honest — it's the surge clip)."""
+
+    def __init__(self, node: mqttc.MqttNode, zone_id: str = "A"):
+        self.node = node
+        self.zone_id = zone_id
+        z = config.zones()
+        bands = z.get("risk_bands_default", {})
+        self.amber = float(bands.get("amber_at", 3.0))
+        self.red = float(bands.get("red_at", 5.0))
+        self.zprof = z.get("zones", {}).get(zone_id, {})
+        self._stop = threading.Event()
+        self.t0 = time.monotonic()
+        self._prev = 0.0
+
+    def _loop(self) -> None:
+        area = float(self.zprof.get("area_m2", 20.0))
+        cam = self.zprof.get("camera_id", "")
+        while not self._stop.wait(1.0):
+            t = time.monotonic() - self.t0
+            d = round(_surge(t), 2)
+            trend = round((d - self._prev) * 60.0, 2)
+            self._prev = d
+            risk = risk_for(d, self.amber, self.red)
+            ttt = int((self.red - d) / max(trend / 60.0, 1e-6)) \
+                if trend > 0 and d < self.red else None
+            self.node.publish(M.topic_zone_density(self.zone_id), M.T_ZONE_DENSITY,
+                              {"zone_id": self.zone_id, "camera_id": cam,
+                               "transport": "file", "fps_effective": 12.0,
+                               "people_count": int(d * area), "area_m2": area,
+                               "density_per_m2": d, "trend_per_min": trend,
+                               "ttt_red_s": ttt, "risk": risk,
+                               "model_id": "surge-clip",
+                               "inference_backend": M.BACKEND_SIM,
+                               "latency_ms": 0.0}, qos=0)
+
+    def start(self) -> "SurgeZone":
+        threading.Thread(target=self._loop, name="surge", daemon=True).start()
+        return self
+
+    def stop(self) -> None:
+        self._stop.set()
+
+
+def run_surge(host="127.0.0.1", port=1883, zone_id="A") -> SurgeZone:
+    node = mqttc.MqttNode("surge-clip", host=host, port=port).connect()
+    time.sleep(0.2)
+    return SurgeZone(node, zone_id).start()
