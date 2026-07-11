@@ -107,11 +107,16 @@ pytest sim/tests                 # headless message-loop tests
 ## Current Status (keep updated — teammates inherit this)
 _Last updated: 2026-07-11 (Sat, build day) by Gamma._
 
-**Scaffold (Phase A):** in progress.
-- ✅ Packaging: `pyproject.toml` (editable install verified — `import crowdvision.sim` resolves from any CWD), `crowdvision._lib` (messages/config/mqttc).
-- ✅ Root: `LICENSE` (MIT), `.gitignore`, `THIRD_PARTY_LICENSES.md`, `README.md`, this file.
-- ⬜ `docs/MESSAGES.md` (full schema) + doc stubs; lane stubs; git init + first commit.
+**Scaffold (Phase A):** ✅ DONE, pushed to `origin/main`.
+- Packaging (`pip install -e .` verified), `crowdvision._lib`, full `docs/MESSAGES.md`, all lane stubs, config templates, `TEAM_START.md`, README/LICENSE/THIRD_PARTY/.gitignore.
 
-**Gamma lane (Phase B):** not started (order: sim → broker → dashboard → venue-tier → calibrate/config → bench).
+**Gamma lane (Phase B):**
+- ✅ **B1 sim harness** — `python -m crowdvision.sim --all` works: embedded amqtt broker + 5 feeds (scripted surge) + decider + virtual gate + virtual officer. Full kill-shot chain fires (density → gate.command → telemetry → incident → nearest-officer dispatch → template-local advisory). `pytest sim/tests` = **5 passed, headless**. Honest badges (`sim-replay`). **This is the integration surface — build your lane against it.**
+- ✅ **B2 broker + LWT** — `mosquitto.conf` (venue) + embedded amqtt (sim); `_lib/mqttc` sets LWT + retained heartbeat on `cv/sys/heartbeat/{device}`; gate.command QoS1+retained+TTL.
+- ⬜ B3 dashboard · ⬜ B4 venue-tier · ⬜ B5 calibrate/config polish · ⬜ B6 benches.
+
+**Integrate now:** run `python -m crowdvision.sim --all`, then point your lane's MQTT at `127.0.0.1:1883` and code to `docs/MESSAGES.md`.
+
+**⚠️ Compliance:** the `resource/` PDFs were pushed earlier (commit 8e666da) and are on GitHub. `.gitignore` blocks them going forward; purge/private decision pending with Sachin.
 
 **Blockers:** none.
