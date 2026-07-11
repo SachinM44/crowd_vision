@@ -1,4 +1,6 @@
-# CLAUDE.md — CrowdVision build context (read me first)
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 CrowdVision is our Snapdragon Multiverse Hackathon 2026 (Bengaluru) entry.
 This file is the shared brain for every teammate's Claude Code session. Keep the
@@ -95,13 +97,55 @@ G0 14:00 devices/NPU/cloud/≥3 feeds/Bridge echo · G1 17:00 NPU detect <40 ms 
 **G4 03:00 FREEZE** · G5 09:00 README/benches/Releases/compliance · **G6 SUBMIT
 by Sun 12:15**.
 
-## Run it
+## Commands
 ```bash
-pip install -e .                 # editable; pulls the approved deps
-python -m crowdvision.sim --all  # embedded amqtt broker + full sim mesh
-# dashboard: http://localhost:8000   (also on the LAN IP)
-pytest sim/tests                 # headless message-loop tests
+pip install -e ".[dev]"          # editable install + pytest; pulls the approved deps
+
+# Run the full zero-hardware demo (embedded amqtt broker + 5 feeds + decider +
+# virtual gate/officer + venue tier + dashboard). Default with no flags = --all.
+python -m crowdvision.sim --all
+python -m crowdvision.sim --feeds --seconds 10   # one component; auto-stop after 10 s
+python -m crowdvision.sim --all --no-dashboard   # skip the FastAPI dashboard
+# dashboard: http://localhost:8000  (binds 0.0.0.0 — open from any LAN device)
+
+# Tests (pytest testpaths is pinned to sim/tests in pyproject.toml)
+pytest                           # all headless message-loop tests
+pytest sim/tests/test_sim_loop.py::test_name -q   # a single test
+
+# Benches — write JSON to bench/out/, then embed into docs/BENCHMARKS.md markers
+python -m bench.net_bench        # MQTT throughput + RTT
+python -m bench.e2e_bench        # density -> gate p50/p95 (sim)
+python -m bench.cloud_rtt_bench  # venue advisory RTT
+python -m bench.embed            # fill docs/BENCHMARKS.md from bench/out/*.json (never hand-type numbers)
+
+# Hardware-only (X Elite / cameras — no-ops or informative off-device)
+python zone-brain/scripts/verify_npu.py          # prove QNN EP via get_ep_devices()
+python tools/calibrate.py --camera c1            # 4-click homography -> config/cameras.yaml
 ```
+
+## Editing the code (packaging + import gotchas — read before touching cross-dir code)
+- **The repo root IS the `crowdvision` package.** `pyproject.toml` sets
+  `package-dir = {"crowdvision": "."}`, so `sim/` imports as `crowdvision.sim`
+  and `_lib/` as `crowdvision._lib`. `packages` is an explicit list — **if you add
+  a new importable subpackage under a mapped dir, add it there** or it won't install.
+- **Hyphenated dirs are NOT Python packages.** `zone-brain/`, `venue-tier/`,
+  `gate-node/`, `field-app/` are run as scripts. Code in `crowdvision.sim` reaches
+  them via `importlib.util.spec_from_file_location` (see `sim/__main__.py`
+  `_load_venue_tier` / `_start_dashboard`), never `import`. Follow that pattern for
+  any new cross-dir wiring; don't try to make them importable.
+- **Never hardcode paths or CWD assumptions.** Resolve via
+  `crowdvision._lib.config.repo_root()` / `config_dir()`; all tunables load from
+  `config/*.yaml` through `config.zones()/cameras()/playbooks()/devices()` (cached).
+- **The message contract is code, not just docs:** `crowdvision._lib.messages`
+  holds the envelope builder, topic builders, honest backend badge constants, and
+  `validate_envelope()` (which sim/tests enforce). Emit via these helpers or raw
+  JSON — both must pass `validate_envelope()`. AI types (`zone.density.update`,
+  `incident.report`, `venue.advisory`) MUST carry
+  `inference_backend`/`latency_ms`/`model_id`; `gate.command` MUST carry
+  `playbook_id`/`triggered_by`/`ttl_s` and a valid `action`.
+- **MQTT wiring** goes through `crowdvision._lib.mqttc` (paho + LWT + retained
+  heartbeat on `cv/sys/heartbeat/{device}`). Broker = embedded amqtt in sim/dev,
+  mosquitto (`mosquitto.conf`) at the venue.
 
 ---
 ## Current Status (keep updated — teammates inherit this)
