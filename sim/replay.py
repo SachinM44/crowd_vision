@@ -40,8 +40,15 @@ def _haversine(a: dict, b: dict) -> float:
 
 
 class Decider:
-    def __init__(self, node: mqttc.MqttNode):
+    """Scripted decider (gate commands + escalation), or — with
+    dispatch_only=True — just the escalation half (incident.report +
+    dispatch.order on RED) while a REAL engine (Alpha's pipeline) owns
+    gate.command. Resolves the dispatch-ownership seam: dispatch stays in
+    Gamma's glue on the PC, driven purely by contract messages."""
+
+    def __init__(self, node: mqttc.MqttNode, *, dispatch_only: bool = False):
         self.node = node
+        self.dispatch_only = dispatch_only
         self.zones = config.zones().get("zones", {})
         try:
             self.playbooks = config.playbooks().get("playbooks", {})
@@ -92,7 +99,7 @@ class Decider:
         if not gate_id:
             return
         pid, action, ttl = self._playbook(risk)
-        if action:
+        if action and not self.dispatch_only:
             self.node.publish(
                 M.topic_gate_cmd(gate_id), M.T_GATE_COMMAND,
                 {"gate_id": gate_id, "action": action, "allowed": M.GATE_ACTIONS,
@@ -106,32 +113,35 @@ class Decider:
 
     def _escalate(self, zid, gate_id, pid, seq, dens) -> None:
         self._inc_seq += 1
-        inc_id = f"inc-sim-{self._inc_seq:03d}"
-        # incident.report (sim-badged)
+        # Honest provenance (Hard Rule 2): in dispatch_only mode the trigger is a
+        # REAL engine's density message, not a scripted one.
+        who = "dispatcher" if self.dispatch_only else "sim-scripted"
+        inc_id = f"inc-{who}-{self._inc_seq:03d}"
         self.node.publish(
             M.TOPIC_INCIDENT_NEW, M.T_INCIDENT_REPORT,
-            {"incident_id": inc_id, "officer_id": "sim", **INCIDENT_LOC,
+            {"incident_id": inc_id, "officer_id": who, **INCIDENT_LOC,
              "text": f"crush risk building at {zid}/gate {gate_id}",
              "structured": {"type": "crowd-crush", "location_hint": f"{zid}-gate-{gate_id}",
                             "severity": "high", "needs": ["crowd-control", "medic"]},
              "schema_valid": True, "photo_ref": None,
-             "model_id": "sim", "inference_backend": M.BACKEND_SIM,
+             "model_id": "rule-based", "inference_backend": M.BACKEND_SIM,
              "latency_ms": 0.0, "ttft_ms": 0.0},
             qos=1)
         # dispatch.order to the nearest officer
         oid = self._nearest_officer()
         self.node.publish(
             M.topic_dispatch(oid), M.T_DISPATCH_ORDER,
-            {"dispatch_id": f"dsp-sim-{self._inc_seq:03d}", "officer_id": oid,
+            {"dispatch_id": f"dsp-{who}-{self._inc_seq:03d}", "officer_id": oid,
              "incident_id": inc_id, **INCIDENT_LOC,
              "reason": "nearest officer to crush-risk incident", "eta_s": 45,
-             "playbook_id": pid, "triggered_by": f"sim-scripted:seq:{seq}"},
+             "playbook_id": pid, "triggered_by": f"{who}:seq:{seq}"},
             qos=1)
         # NOTE: venue.advisory is the venue tier's job (off the safety path) —
         # see venue-tier/sim_zones.py, which publishes it on AMBER/RED.
 
 
-def run(host="127.0.0.1", port=1883) -> Decider:
-    node = mqttc.MqttNode("sim-decider", host=host, port=port).connect()
+def run(host="127.0.0.1", port=1883, *, dispatch_only: bool = False) -> Decider:
+    name = "dispatcher" if dispatch_only else "sim-decider"
+    node = mqttc.MqttNode(name, host=host, port=port).connect()
     time.sleep(0.2)
-    return Decider(node)
+    return Decider(node, dispatch_only=dispatch_only)

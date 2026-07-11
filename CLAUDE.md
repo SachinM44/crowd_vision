@@ -148,6 +148,22 @@ python tools/calibrate.py --camera c1            # 4-click homography -> config/
   mosquitto (`mosquitto.conf`) at the venue.
 
 ---
+## Alpha review verdict (Gamma, Sat night)
+Alpha's merged lane **validated against Build Plan v9**: 10/10 self-tests pass;
+density payload = full §e shape (all 16 fields incl. flow_check/temp_source);
+badges honest; risk tunables all config-driven (α=.3/60s/10%/5s); Hard Rules 3/5/7
+clean; P1→P2→P3 fires with real provenance. **Both §9 seams resolved by Gamma:**
+(1) dispatch stays in Gamma's glue — `sim --all --no-feeds` now runs an
+escalation-only **dispatcher** (incident + nearest-officer dispatch on RED, badged
+`dispatcher:`) while Alpha's engine owns gate.command; (2)
+`zone-brain/bench/e2e_bench.py` stub → delegates to Gamma's real `bench/e2e_bench.py`.
+Full hardware-path chain verified: Alpha pipeline → gate cmds → dispatcher →
+officer ack → venue advisory, zero invalid envelopes.
+
+**Remaining = Beta lane** (UNO Q gate node + OnePlus officer app — sim_gate/
+sim_officer mirror the exact topics) **+ X Elite hardware steps** (alpha.md §7:
+setup.ps1, model staging, verify_npu, RTSP+calibration, --require-npu, real benches).
+
 ## Current Status (keep updated — teammates inherit this)
 _Last updated: 2026-07-11 (Sat, build day) by Gamma._
 

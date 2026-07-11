@@ -150,6 +150,12 @@ def main(argv=None) -> int:
             # the real pipeline (zone-brain/vision/pipeline.py) fires the playbooks.
             from . import replay
             comps.append(("decider", replay.run(host, port)))
+        elif args.all and args.no_feeds:
+            # Alpha's engine owns gate.command, but dispatch stays in Gamma's glue:
+            # escalation-only decider (incident.report + nearest-officer dispatch
+            # on RED) so the officer loop still fires in the real-hardware path.
+            from . import replay
+            comps.append(("dispatcher", replay.run(host, port, dispatch_only=True)))
 
     dashboard_up = False
     if (args.all or args.live) and not args.no_dashboard:
