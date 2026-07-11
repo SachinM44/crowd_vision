@@ -6,6 +6,10 @@ every sim component so judges reproduce the full mesh with no phones:
 
 Selective flags run single components against an already-running broker (or start
 one if none is up). Open the dashboard at http://localhost:8000 (Gamma B3).
+
+`--all --no-feeds` starts everything EXCEPT the sim feeds + sim decider, so the
+real Alpha pipeline (zone-brain/vision/pipeline.py) can supply density + engine
+against a live broker, dashboard, gate, officer, and venue tier.
 """
 from __future__ import annotations
 
@@ -89,6 +93,9 @@ def main(argv=None) -> int:
     ap.add_argument("--surge-zone", default="A", help="zone for --surge (default A)")
     ap.add_argument("--no-dashboard", action="store_true",
                     help="do not launch the dashboard with --all / --live")
+    ap.add_argument("--no-feeds", action="store_true",
+                    help="skip sim feeds + sim decider so Alpha's real pipeline "
+                         "supplies density + engine (broker+dashboard+gate+officer+venue)")
     ap.add_argument("--seconds", type=float, default=0.0,
                     help="auto-stop after N seconds (0 = run forever)")
     args = ap.parse_args(argv)
@@ -135,10 +142,12 @@ def main(argv=None) -> int:
                 comps.append(("venue-tier", vt.run(host, port)))
             except Exception as exc:  # noqa: BLE001
                 print(f"[sim] venue tier failed to start ({exc}) -- skipping")
-        if args.all or args.feeds:
+        if (args.all or args.feeds) and not args.no_feeds:
             from . import sim_feeds
             comps.append(("feeds", sim_feeds.run(host, port)))
-        if args.all:
+        if args.all and not args.no_feeds:
+            # Sim decider stands in for Alpha's engine; skip it with --no-feeds so
+            # the real pipeline (zone-brain/vision/pipeline.py) fires the playbooks.
             from . import replay
             comps.append(("decider", replay.run(host, port)))
 
