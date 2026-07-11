@@ -1,0 +1,21 @@
+# config/devices.yaml — device IPs + roles on the Phone-H hotspot LAN.
+# OWNER: Gamma. Filled at check-in Saturday. IPs are placeholders until then.
+
+broker:
+  host: "127.0.0.1"     # zone-brain (Surface) hosts the broker; sim uses localhost
+  port: 1883
+
+dashboard:
+  host: "0.0.0.0"       # bind all interfaces so any LAN device can open it
+  port: 8000
+
+devices:
+  zonebrain-A: { role: "zone-brain", ip: "TODO", form_factor: "Surface X Elite" }
+  uno-q-G3:    { role: "gate-node",  ip: "TODO", form_factor: "Arduino UNO Q" }
+  officer-1:   { role: "officer",    ip: "TODO", form_factor: "OnePlus 15" }
+  officer-2:   { role: "officer",    ip: "TODO", form_factor: "Phone-H (instance)" }
+  c1: { role: "camera", ip: "TODO", zone: "B" }
+  c2: { role: "camera", ip: "TODO", zone: "C" }
+  c3: { role: "camera", ip: "TODO", zone: "D" }
+  c4: { role: "camera", ip: "TODO", zone: "G3-lane" }
+  phone-H: { role: "hotspot+uplink", ip: "TODO", form_factor: "personal phone" }

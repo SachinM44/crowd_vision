@@ -1,0 +1,5 @@
+# gate-node MPU (UNO Q Linux) — Python deps. OWNER: Beta.
+# Keep minimal; the App Lab Bridge helper ships on the board.
+paho-mqtt>=2.0
+pyyaml>=6.0
+# arduino.app_bridge is provided by the App Lab runtime on the UNO Q (not pip).

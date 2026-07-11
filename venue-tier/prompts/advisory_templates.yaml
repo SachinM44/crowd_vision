@@ -1,0 +1,18 @@
+# venue-tier/prompts/advisory_templates.yaml
+# OWNER: Gamma (Phase B4). Trilingual PA advisory templates + cloud prompt.
+# Placeholder — real EN/HI/KN copy filled in B4.
+
+cloud_system_prompt: |
+  You are a venue safety advisor. Given per-zone crowd density state, produce a
+  short public-address advisory in English, Hindi, and Kannada. Be calm, direct,
+  and specific about which exits/zones to use. Never invent zones not provided.
+
+templates:
+  amber:
+    en: "Zone {zone} is filling. Please use the {exit} exits."
+    hi: "TODO(gamma B4): Hindi template"
+    kn: "TODO(gamma B4): Kannada template"
+  red:
+    en: "Zone {zone} is crowded. Do not enter; move toward {exit}."
+    hi: "TODO(gamma B4)"
+    kn: "TODO(gamma B4)"

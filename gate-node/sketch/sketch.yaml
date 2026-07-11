@@ -1,0 +1,9 @@
+# gate-node/sketch/sketch.yaml — Arduino sketch build config for the UNO Q MCU.
+# OWNER: Beta (TODO(beta)). Contract stub.
+#
+# TODO(beta): fill fqbn + libraries from the UNO Q User Manual / App Lab example.
+# The Bridge library + Modulino libraries (Knob/Buzzer/Thermo) are declared here.
+default_fqbn: arduino:???:unoq   # TODO(beta): confirm exact FQBN
+libraries:
+  - Bridge          # Arduino Bridge (RPC) — pin exact name/version from examples
+  # - Modulino      # optional Knob/Buzzer/Thermo (feature-flagged)

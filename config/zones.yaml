@@ -1,0 +1,45 @@
+# config/zones.yaml — zone polygons, areas, and Fruin risk bands.
+# OWNER: Gamma. Alpha's density.py + risk.py READ this. Nothing hardcoded (Hard Rule 5).
+#
+# Coordinates are floor-plane metres in the local floorplan CRS (same frame the
+# dashboard Leaflet map uses). Calibrate real polygons with tools/calibrate.py.
+
+# Fruin Level-of-Service density bands (people / m^2). Shared default; a zone may
+# override. GREEN < amber_at <= AMBER < red_at <= RED.
+risk_bands_default:
+  amber_at: 3.0        # congests
+  red_at: 5.0          # loses individual control
+  hysteresis_pct: 10   # +/- band before a state flips
+  dwell_s: 5           # must persist this long before flipping
+
+# EWMA + prediction tunables (risk.py).
+predictor:
+  ewma_alpha: 0.3
+  slope_window_s: 60
+  stale_lost_s: 10     # feed LOST > 10s => zone UNKNOWN (Hard Rule 7)
+
+zones:
+  A:                    # Feed A — scripted surge clip ("Zone A CCTV"), the kill-shot
+    name: "Zone A (surge)"
+    camera_id: feed_a
+    area_m2: 20.0
+    polygon: [[0, 0], [8, 0], [8, 5], [0, 5]]
+    gate_id: G3
+  B:                    # Phone-C1 — the judges, live
+    name: "Zone B (entry, live)"
+    camera_id: c1
+    area_m2: 21.0
+    polygon: [[8, 0], [16, 0], [16, 5], [8, 5]]
+    gate_id: G1
+  C:                    # Phone-C2
+    name: "Zone C"
+    camera_id: c2
+    area_m2: 18.0
+    polygon: [[0, 5], [8, 5], [8, 10], [0, 10]]
+    gate_id: G2
+  D:                    # Phone-C3
+    name: "Zone D"
+    camera_id: c3
+    area_m2: 18.0
+    polygon: [[8, 5], [16, 5], [16, 10], [8, 10]]
+    gate_id: G2

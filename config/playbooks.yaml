@@ -1,0 +1,25 @@
+# config/playbooks.yaml — pre-approved autonomous responses (P1/P2/P3).
+# OWNER: Gamma (writes) — Alpha's playbooks.py READs it.
+# action must be one of messages.GATE_ACTIONS. Human override at every level.
+
+playbooks:
+  P1:
+    name: "Early divert (AMBER trend)"
+    when: { risk: AMBER, trend_per_min_gt: 0.15 }
+    gate_action: DIVERT_LEFT
+    ttl_s: 120
+    reason_template: "zone {zone} density {density} rising {trend}/min, TTT {ttt}"
+
+  P2:
+    name: "Close + divert (RED / crush trending)"
+    when: { risk: RED }
+    gate_action: CLOSE_DIVERT_LEFT
+    ttl_s: 120
+    reason_template: "zone {zone} density {density} rising {trend}/min, TTT {ttt}"
+
+  P3:
+    name: "Safe flash (recovery / all-clear)"
+    when: { risk: GREEN, from: [AMBER, RED] }
+    gate_action: SAFE_FLASH
+    ttl_s: 60
+    reason_template: "zone {zone} recovered to {density}/m^2"

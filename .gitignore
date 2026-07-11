@@ -1,0 +1,51 @@
+# --- Model weights & AI artifacts (Rules §8.c/§8.d — never commit) ----------
+*.onnx
+*.dlc
+*.litertlm
+*.pte
+*.bin
+weights/
+models/
+
+# --- Qualcomm runtime binaries (redistribution-restricted) ------------------
+libQnn*
+QnnHtp.dll
+libLiteRtDispatch_Qualcomm.so
+libQnnSystem.so
+libGemmaModelConstraintProvider.so
+
+# --- Secrets ---------------------------------------------------------------
+.env
+*.key
+
+# --- Confidential build docs — NEVER push (team-internal PDFs) -------------
+resource/
+
+# --- Android build artifacts -----------------------------------------------
+*.apk
+*.aab
+*.keystore
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# --- Node / frontend -------------------------------------------------------
+node_modules/
+
+# --- Bench outputs (regenerated; JSON embedded into BENCHMARKS.md) ---------
+bench/out/
+*.bench.json
+
+# --- OS / editor -----------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

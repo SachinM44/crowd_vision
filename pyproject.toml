@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crowdvision"
+version = "0.9.0"
+description = "CrowdVision — autonomous crowd-crush prevention on the Snapdragon edge"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "CrowdVision Team" }]
+
+# Approved dependency set (Gamma lane = pure-Python only; Windows ARM64 safe).
+# Do not add dependencies beyond this set without team sign-off.
+dependencies = [
+    "paho-mqtt>=2.0",
+    "amqtt>=0.11",          # pure-Python broker (sim/dev + fallback); mosquitto is the venue broker
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "websockets>=12.0",
+    "pyyaml>=6.0",
+    "numpy>=1.26",
+    "opencv-python>=4.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+# --- Packaging: keep the v9 §i top-level layout literal. -------------------
+# The repo root IS the `crowdvision` package (package-dir maps it to ".").
+# That makes `sim/` importable as `crowdvision.sim`, so the judges' pinned
+# command `python -m crowdvision.sim --all` resolves after `pip install -e .`.
+# Hyphenated dirs (zone-brain/, venue-tier/, gate-node/, field-app/) are NOT
+# Python submodules — they are run as scripts and import shared code from the
+# installed `crowdvision._lib`.
+[tool.setuptools]
+package-dir = { "crowdvision" = "." }
+packages = [
+    "crowdvision",
+    "crowdvision._lib",
+    "crowdvision.sim",
+    "crowdvision.sim.tests",
+]
+# Explicit list disables setuptools flat-layout auto-discovery of sibling dirs.
+
+[tool.pytest.ini_options]
+testpaths = ["sim/tests"]
+addopts = "-q"

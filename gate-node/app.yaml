@@ -1,0 +1,20 @@
+# gate-node/app.yaml — Arduino App Lab manifest for the UNO Q gate node.
+# OWNER: Beta (TODO(beta)). Contract stub.
+#
+# Start on the board:  arduino-app-cli app start ./gate-node
+# Logs:                arduino-app-cli app logs  ./gate-node
+# Stop:                arduino-app-cli app stop  ./gate-node
+#
+# The app has two halves that talk over the Bridge (RPC):
+#   python/main.py   (MPU, Linux): MQTT client + fail-safe state machine + LWT
+#   sketch/sketch.ino (MCU): matrix arrows / RGB / chirp via Bridge.provide(...)
+#
+# Modulinos (Knob/Buzzer/Thermo) are OPTIONAL and behind feature flags —
+# auto-detected, never a hard dependency.
+name: crowdvision-gate-node
+version: 0.9.0
+runtime:
+  python: python/main.py
+  sketch: sketch/sketch.ino
+# TODO(beta): confirm exact App Lab manifest keys from the UNO Q User Manual /
+# built-in examples (they vary by App Lab version — pin, never invent).

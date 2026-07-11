@@ -1,0 +1,44 @@
+# config/cameras.yaml — camera mesh sources + per-camera homography profiles.
+# OWNER: Gamma (writes) — Alpha's capture.py/homography.py READ it.
+# RTSP URLs + homography filled at the venue by tools/calibrate.py --camera cN.
+#
+# transport: file | webcam | rtsp.  A missing/unreachable source => capture.py
+# marks it DEGRADED/LOST honestly (Hard Rule 7).
+
+defaults:
+  resolution: "640x480"
+  fps_cap: 12
+
+cameras:
+  feed_a:                       # scripted surge clip — deterministic kill-shot
+    transport: file
+    url: "sim/assets/surge_zoneA.mp4"   # looped file feed (staged; sim uses synthetic)
+    zone_id: A
+    # Identity homography until calibrated (image px == floor m placeholder).
+    homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+
+  c1:                           # Zone B wide — the judges (live)
+    transport: rtsp
+    url: "rtsp://PHONE_C1_IP:8080/h264_ulaw.sdp"   # TODO: set at check-in
+    zone_id: B
+    homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+
+  c2:
+    transport: rtsp
+    url: "rtsp://PHONE_C2_IP:8080/h264_ulaw.sdp"
+    zone_id: C
+    homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+
+  c3:
+    transport: rtsp
+    url: "rtsp://PHONE_C3_IP:8080/h264_ulaw.sdp"
+    zone_id: D
+    homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+
+  c4:                           # dedicated Gate-3 lane camera — real line crossing
+    transport: rtsp
+    url: "rtsp://PHONE_C4_IP:8080/h264_ulaw.sdp"
+    zone_id: G3-lane
+    gate_id: G3
+    gate_line: [[4, 0], [4, 5]]   # in/out counting line in floor metres
+    homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
