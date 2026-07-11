@@ -22,12 +22,30 @@ _pending — run `zone-brain/bench/mesh_bench.py` (Alpha)._
 
 ## 3. Network — hotspot throughput + per-stream RTSP drop rate + reconnects
 <!-- BENCH:net START -->
-_pending — run `bench/net_bench.py` (Gamma)._
+| metric | value |
+|---|---|
+| MQTT round-trip latency p50 | 1.11 ms |
+| MQTT round-trip latency p95 | 1.617 ms |
+| MQTT throughput | 962.3 msg/s (500/500 delivered) |
+| RTSP per-stream drop rate | _pending live cameras (venue)_ |
+
+_Broker: embedded amqtt (dev). Venue broker: mosquitto._
+
+_captured: 2026-07-11T16:57:55+05:30_
 <!-- BENCH:net END -->
 
 ## 4. End-to-end frame → gate-actuated (p50/p95, 50 playbook fires)
 <!-- BENCH:e2e START -->
-_pending — run `bench/e2e_bench.py` / `zone-brain/bench/e2e_bench.py`._
+| metric | value |
+|---|---|
+| fires | 50 / 50 |
+| e2e density->gate p50 | 7.892 ms |
+| e2e density->gate p95 | 8.995 ms |
+| e2e max | 12.198 ms |
+
+_Path: density -> decider -> gate.command -> telemetry ACK (sim, MQTT + echo). On hardware: NPU frame -> UNO Q, target < 2 s._
+
+_captured: 2026-07-11T16:58:07+05:30_
 <!-- BENCH:e2e END -->
 
 ## 5. Gate actuation internals (bridge_rpc_ms ×100 + actuated_ms/command)
@@ -57,5 +75,14 @@ _pending — commit raw, timestamped output of `zone-brain/scripts/verify_npu.py
 
 ## 10. Venue-tier RTT distribution (Cloud AI 100, 30 advisory calls)
 <!-- BENCH:cloud_rtt START -->
-_pending — run `bench/cloud_rtt_bench.py` (Gamma)._
+| metric | value |
+|---|---|
+| backend | `template-local` |
+| calls | 30 |
+| RTT mean | 0.017 ms |
+| RTT p50 / p95 | 0.016 / 0.027 ms |
+
+_With AISUITE_* creds this measures real Cloud AI 100 RTT (badged `cloud-ai100`); here it measured the offline fallback._
+
+_captured: 2026-07-11T16:57:56+05:30_
 <!-- BENCH:cloud_rtt END -->
