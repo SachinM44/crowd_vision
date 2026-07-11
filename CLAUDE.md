@@ -148,6 +148,15 @@ python tools/calibrate.py --camera c1            # 4-click homography -> config/
   mosquitto (`mosquitto.conf`) at the venue.
 
 ---
+## ★ BETA: START AT `BETA_HANDOFF.md` ★
+Complete handoff for the Beta lane (UNO Q gate node + OnePlus officer app): the
+full contract with exact JSON, definition of done, test recipes against the sim
+(`--real-gates G3`, `--real-officers officer-1`, `--no-gate`, `--no-officer` let
+real hardware replace sim devices without topic fights), and every gotcha
+(retained-command TTL, LAN broker at the laptop IP — binds 0.0.0.0 — firewall,
+paho 2.x, honest badges). Everything Alpha+Gamma is DONE and verified; Beta is
+the only unbuilt lane.
+
 ## Alpha review verdict (Gamma, Sat night)
 Alpha's merged lane **validated against Build Plan v9**: 10/10 self-tests pass;
 density payload = full §e shape (all 16 fields incl. flow_check/temp_source);

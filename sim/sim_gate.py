@@ -61,7 +61,10 @@ class SimGate:
         self._stop.set()
 
 
-def run(host="127.0.0.1", port=1883) -> SimGate:
+def run(host="127.0.0.1", port=1883, gate_ids=None) -> SimGate:
+    """gate_ids: which gates to emulate (default G1,G2,G3). Pass a subset when a
+    REAL UNO Q owns some gate (e.g. real G3 -> sim only G1,G2) so the sim never
+    fights the hardware's telemetry on the same topic."""
     node = mqttc.MqttNode("uno-q-sim", host=host, port=port).connect()
     time.sleep(0.2)
-    return SimGate(node).start()
+    return SimGate(node, gate_ids or ("G1", "G2", "G3")).start()

@@ -96,9 +96,22 @@ def main(argv=None) -> int:
     ap.add_argument("--no-feeds", action="store_true",
                     help="skip sim feeds + sim decider so Alpha's real pipeline "
                          "supplies density + engine (broker+dashboard+gate+officer+venue)")
+    ap.add_argument("--real-gates", default="",
+                    help="comma list of gate ids a REAL UNO Q owns (e.g. G3) — "
+                         "the sim gate stops emulating them so telemetry never fights")
+    ap.add_argument("--real-officers", default="",
+                    help="comma list of officer ids a REAL phone owns (e.g. officer-1) — "
+                         "the sim officer stops emulating them")
+    ap.add_argument("--no-gate", action="store_true", help="no sim gate at all (all real)")
+    ap.add_argument("--no-officer", action="store_true", help="no sim officers at all")
     ap.add_argument("--seconds", type=float, default=0.0,
                     help="auto-stop after N seconds (0 = run forever)")
     args = ap.parse_args(argv)
+
+    real_gates = {g.strip() for g in args.real_gates.split(",") if g.strip()}
+    sim_gate_ids = tuple(g for g in ("G1", "G2", "G3") if g not in real_gates)
+    real_off = {o.strip() for o in args.real_officers.split(",") if o.strip()}
+    sim_officer_ids = tuple(o for o in ("officer-1", "officer-2") if o not in real_off)
 
     if not any([args.all, args.feeds, args.gate, args.officer, args.zones, args.live]):
         args.all = True  # default
@@ -114,8 +127,10 @@ def main(argv=None) -> int:
     if args.live:
         # REAL cameras drive the zones; keep the full react/inform loop.
         from . import sim_gate, sim_officer, replay
-        comps.append(("gate", sim_gate.run(host, port)))
-        comps.append(("officer", sim_officer.run(host, port)))
+        if not args.no_gate and sim_gate_ids:
+            comps.append(("gate", sim_gate.run(host, port, gate_ids=sim_gate_ids)))
+        if not args.no_officer and sim_officer_ids:
+            comps.append(("officer", sim_officer.run(host, port, officer_ids=sim_officer_ids)))
         try:
             vt = _load_venue_tier()
             comps.append(("venue-tier", vt.run(host, port)))
@@ -130,12 +145,12 @@ def main(argv=None) -> int:
         comps.append(("live-capture", live.run(host, port)))
     else:
         # Import lazily so single-component runs don't import everything.
-        if args.all or args.gate:
+        if (args.all or args.gate) and not args.no_gate and sim_gate_ids:
             from . import sim_gate
-            comps.append(("gate", sim_gate.run(host, port)))
-        if args.all or args.officer:
+            comps.append(("gate", sim_gate.run(host, port, gate_ids=sim_gate_ids)))
+        if (args.all or args.officer) and not args.no_officer and sim_officer_ids:
             from . import sim_officer
-            comps.append(("officer", sim_officer.run(host, port)))
+            comps.append(("officer", sim_officer.run(host, port, officer_ids=sim_officer_ids)))
         if args.all or args.zones:
             try:
                 vt = _load_venue_tier()

@@ -20,8 +20,11 @@ logging.getLogger("transitions").setLevel(logging.CRITICAL)
 
 
 def _broker_config(host: str, port: int) -> dict:
+    # Bind ALL interfaces so real LAN devices (UNO Q, OnePlus, phones) can
+    # connect — matching the dashboard and mosquitto.conf. Local clients still
+    # connect via 127.0.0.1 (0.0.0.0 includes loopback).
     return {
-        "listeners": {"default": {"type": "tcp", "bind": f"{host}:{port}",
+        "listeners": {"default": {"type": "tcp", "bind": f"0.0.0.0:{port}",
                                   "max_connections": 100}},
         "plugins": {
             "amqtt.plugins.authentication.AnonymousAuthPlugin": {"allow_anonymous": True},

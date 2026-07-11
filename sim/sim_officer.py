@@ -22,25 +22,30 @@ OFFICERS = {
 
 
 class SimOfficer:
-    def __init__(self, node: mqttc.MqttNode):
+    def __init__(self, node: mqttc.MqttNode, officer_ids=None):
+        """officer_ids: which officers to emulate (default both). Pass a subset
+        when a REAL phone owns one (e.g. real officer-1 -> sim only officer-2),
+        so the sim never publishes beacons/acks for the hardware's id."""
         self.node = node
-        self.status = {oid: "available" for oid in OFFICERS}
-        self._last_dispatch = {oid: None for oid in OFFICERS}
+        self.roster = {oid: o for oid, o in OFFICERS.items()
+                       if not officer_ids or oid in officer_ids}
+        self.status = {oid: "available" for oid in self.roster}
+        self._last_dispatch = {oid: None for oid in self.roster}
         self._stop = threading.Event()
-        for oid in OFFICERS:
+        for oid in self.roster:
             node.on(M.topic_dispatch(oid), self._on_dispatch)
 
     def _on_dispatch(self, topic: str, msg: dict) -> None:
         p = msg.get("payload", {})
         oid = p.get("officer_id")
-        if oid not in OFFICERS:
+        if oid not in self.roster:
             return
         self.status[oid] = "enroute"
         self._last_dispatch[oid] = p.get("dispatch_id")
         self._beacon(oid)  # immediate ack via beacon
 
     def _beacon(self, oid: str) -> None:
-        o = OFFICERS[oid]
+        o = self.roster[oid]
         self.node.publish(
             M.topic_officer_beacon(oid), M.T_OFFICER_BEACON,
             {"officer_id": oid, "lat": o["lat"], "lon": o["lon"], "accuracy_m": 5.0,
@@ -50,11 +55,11 @@ class SimOfficer:
 
     def _loop(self) -> None:
         while not self._stop.wait(3.0):
-            for oid in OFFICERS:
+            for oid in self.roster:
                 self._beacon(oid)
 
     def start(self) -> "SimOfficer":
-        for oid in OFFICERS:  # initial beacons so the map populates immediately
+        for oid in self.roster:  # initial beacons so the map populates immediately
             self._beacon(oid)
         threading.Thread(target=self._loop, name="sim-officer", daemon=True).start()
         return self
@@ -63,7 +68,7 @@ class SimOfficer:
         self._stop.set()
 
 
-def run(host="127.0.0.1", port=1883) -> SimOfficer:
+def run(host="127.0.0.1", port=1883, officer_ids=None) -> SimOfficer:
     node = mqttc.MqttNode("officers-sim", host=host, port=port).connect()
     time.sleep(0.2)
-    return SimOfficer(node).start()
+    return SimOfficer(node, officer_ids).start()
