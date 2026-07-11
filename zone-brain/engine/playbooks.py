@@ -94,6 +94,34 @@ def fire(node, playbook_id: str, gate_id: str, reason: str, triggered_by: str) -
                         qos=1, retain=True, properties=ttl_properties(ttl))
 
 
+# --- Stateful transition tracker used by pipeline.py ---
+
+_PREV_RISK: dict[str, str] = {}  # zone_id -> last fired risk
+
+
+def fire_if_needed(node, zone_id: str, risk: str, density: float,
+                   trend_per_min: float, ttt_red_s) -> None:
+    """Fire gate.command on a risk transition; noop if the level is unchanged.
+
+    Looks up the gate_id for zone_id from config/zones.yaml.  If the playbook
+    guard blocks a fire (select_playbook returns None), no command is sent —
+    the guard's intent is respected.
+    """
+    prev = _PREV_RISK.get(zone_id)
+    pid, action, _ = select_playbook(risk, trend_per_min, prev_risk=prev)
+    if pid is None:
+        return
+    if risk == prev:
+        return   # same level already announced
+    _PREV_RISK[zone_id] = risk
+    # Resolve gate_id from config; default to zone_id if missing.
+    z = C.zones().get("zones", {}).get(zone_id, {})
+    gate_id = z.get("gate_id", zone_id)
+    reason = reason_for(pid, zone_id, density, trend_per_min, ttt_red_s)
+    triggered_by = f"zone:{zone_id}/risk:{risk}"
+    fire(node, pid, gate_id, reason, triggered_by)
+
+
 def _selftest() -> int:
     # Mapping: AMBER(trend>0.15)->P1, RED->P2, GREEN from RED->P3, GREEN cold->none.
     assert select_playbook(M.RISK_AMBER, 0.31)[:2] == ("P1", "DIVERT_LEFT")

@@ -1,0 +1,4 @@
+# verify_npu.py  @ 2026-07-11T20:01:37+05:30
+onnxruntime-qnn not available: No module named 'onnxruntime'
+Install the pinned win-arm64 wheelhouse via setup.ps1 on the X Elite.
+RESULT: QNN EP absent (expected on dev machine; exit 3)
