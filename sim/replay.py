@@ -127,16 +127,8 @@ class Decider:
              "reason": "nearest officer to crush-risk incident", "eta_s": 45,
              "playbook_id": pid, "triggered_by": f"sim-scripted:seq:{seq}"},
             qos=1)
-        # venue.advisory (template-local — honest badge; no cloud in sim)
-        self.node.publish(
-            M.TOPIC_VENUE_ADVISORY, M.T_VENUE_ADVISORY,
-            {"advisory_id": f"adv-sim-{self._inc_seq:03d}", "scope": f"zone:{zid}",
-             "en": f"Zone {zid} is crowded. Please use alternate exits.",
-             "hi": f"ज़ोन {zid} में भीड़ है। कृपया वैकल्पिक निकास का उपयोग करें।",
-             "kn": f"ವಲಯ {zid} ರಲ್ಲಿ ಜನದಟ್ಟಣೆ ಇದೆ. ಪರ್ಯಾಯ ನಿರ್ಗಮನ ಬಳಸಿ.",
-             "model_id": "sim-template", "inference_backend": M.BACKEND_TEMPLATE,
-             "latency_ms": 0.0},
-            qos=1)
+        # NOTE: venue.advisory is the venue tier's job (off the safety path) —
+        # see venue-tier/sim_zones.py, which publishes it on AMBER/RED.
 
 
 def run(host="127.0.0.1", port=1883) -> Decider:

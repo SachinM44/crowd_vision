@@ -104,9 +104,9 @@ def test_decider_red_escalates(broker, monitor):
     def chain_ok():
         types = _types(monitor)
         return (M.T_GATE_COMMAND in types and M.T_INCIDENT_REPORT in types
-                and M.T_DISPATCH_ORDER in types and M.T_VENUE_ADVISORY in types)
+                and M.T_DISPATCH_ORDER in types)
 
-    assert wait_for(chain_ok), "decider did not fire the full RED chain"
+    assert wait_for(chain_ok), "decider did not fire the safety chain (gate/incident/dispatch)"
 
     cmd = next(m for _t, m in monitor.messages if m["type"] == M.T_GATE_COMMAND)
     assert cmd["payload"]["action"] == "CLOSE_DIVERT_LEFT"
@@ -114,10 +114,46 @@ def test_decider_red_escalates(broker, monitor):
     # nearest-officer selection picked the closer one
     dsp = next(m for _t, m in monitor.messages if m["type"] == M.T_DISPATCH_ORDER)
     assert dsp["payload"]["officer_id"] == "officer-2"
-    # honest badges
+    pub.disconnect()
+
+
+def _load_venue_tier():
+    import importlib.util
+    from crowdvision._lib import config
+    path = config.repo_root() / "venue-tier" / "sim_zones.py"
+    spec = importlib.util.spec_from_file_location("cv_venue_tier_test", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_venue_tier_advisory_and_state(broker, monitor):
+    """Venue tier publishes trilingual advisory (template-local) + N-zone state."""
+    vt_mod = _load_venue_tier()
+    host, port = broker
+    vt = vt_mod.run(host, port)
+    time.sleep(0.4)
+    pub = mqttc.MqttNode("t-vt", host=host, port=port).connect()
+    time.sleep(0.3)
+    pub.publish(M.topic_zone_density("A"), M.T_ZONE_DENSITY,
+                {"zone_id": "A", "density_per_m2": 5.6, "risk": "RED",
+                 "model_id": "sim", "inference_backend": M.BACKEND_SIM,
+                 "latency_ms": 1.0})
+
+    def has_advisory():
+        return any(m["type"] == M.T_VENUE_ADVISORY for _t, m in monitor.messages)
+
+    assert wait_for(has_advisory), "venue tier did not publish an advisory"
     adv = next(m for _t, m in monitor.messages if m["type"] == M.T_VENUE_ADVISORY)
-    assert adv["payload"]["inference_backend"] == M.BACKEND_TEMPLATE
+    assert adv["payload"]["inference_backend"] == M.BACKEND_TEMPLATE  # no cloud creds
     assert {"en", "hi", "kn"} <= set(adv["payload"])
+    assert M.validate_envelope(adv) == []
+    # N-zone state carries the 2 SIM-labeled peers
+    assert wait_for(lambda: any(m["type"] == M.T_VENUE_STATE for _t, m in monitor.messages))
+    st = next(m for _t, m in monitor.messages if m["type"] == M.T_VENUE_STATE)
+    sim_ids = [z["zone_id"] for z in st["payload"]["zones"] if z.get("simulated")]
+    assert "SIM-1" in sim_ids and "SIM-2" in sim_ids
+    vt.stop()
     pub.disconnect()
 
 

@@ -33,6 +33,16 @@ def _dash_url() -> str:
     return f"http://localhost:{port}"
 
 
+def _load_venue_tier():
+    """Load venue-tier/sim_zones.py (hyphenated dir, not importable) via importlib."""
+    import importlib.util
+    path = config.repo_root() / "venue-tier" / "sim_zones.py"
+    spec = importlib.util.spec_from_file_location("cv_venue_tier", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def _start_dashboard(broker_host: str, broker_port: int):
     """Load zone-brain/server/app.py (hyphenated dir, not importable) and serve
     it in a daemon thread so `sim --all` is truly one command."""
@@ -86,10 +96,10 @@ def main(argv=None) -> int:
         comps.append(("officer", sim_officer.run(host, port)))
     if args.all or args.zones:
         try:
-            from . import sim_zones  # optional (Gamma B4)
-            comps.append(("zones", sim_zones.run(host, port)))
+            vt = _load_venue_tier()
+            comps.append(("venue-tier", vt.run(host, port)))
         except Exception as exc:  # noqa: BLE001
-            print(f"[sim] venue sim zones not wired yet ({exc}) -- skipping")
+            print(f"[sim] venue tier failed to start ({exc}) -- skipping")
     if args.all or args.feeds:
         from . import sim_feeds
         comps.append(("feeds", sim_feeds.run(host, port)))
