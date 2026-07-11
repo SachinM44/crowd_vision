@@ -3,6 +3,8 @@
 *.dlc
 *.litertlm
 *.pte
+*.pt
+*.caffemodel
 *.bin
 weights/
 models/

@@ -22,12 +22,26 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_HERE))
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # noqa: E402
+import cv2  # noqa: E402
+import numpy as np  # noqa: E402
+from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
-from crowdvision._lib import config  # noqa: E402
+from crowdvision._lib import config, framebus  # noqa: E402
 from mqtt_bridge import DashboardBridge  # noqa: E402  (same dir; on sys.path[0])
+
+_PLACEHOLDER = None
+
+
+def _placeholder_jpg() -> bytes:
+    global _PLACEHOLDER
+    if _PLACEHOLDER is None:
+        img = np.full((270, 480, 3), 28, np.uint8)
+        cv2.putText(img, "connecting camera...", (110, 140),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (120, 120, 120), 2)
+        _PLACEHOLDER = cv2.imencode(".jpg", img)[1].tobytes()
+    return _PLACEHOLDER
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -65,14 +79,13 @@ def build_config() -> dict:
     # Camera preview URLs (operator sees the live feeds locally). Only IP Webcam
     # style snapshot sources get a browser-loadable thumbnail.
     cam_list = []
+    live_tp = ("ipwebcam", "snapshot", "rtsp", "mjpeg", "webcam")
     for cid, c in config.cameras().get("cameras", {}).items():
         transport = (c.get("transport") or "").lower()
-        url = c.get("url")
-        shot = None
-        if transport in ("ipwebcam", "snapshot") or \
-                (isinstance(url, str) and url.endswith(".jpg")):
-            shot = url if (isinstance(url, str) and url.endswith(".jpg")) \
-                else f"{str(url).rstrip('/')}/shot.jpg"
+        url = str(c.get("url", ""))
+        # Thumbnail = OUR annotated frame (video + person boxes), served locally.
+        live = transport in live_tp and not any(t in url for t in ("PHONE_", "_IP"))
+        shot = f"/api/cam/{cid}.jpg" if live else None
         cam_list.append({"id": cid, "zone_id": c.get("zone_id"), "shot_url": shot})
     return {"bounds": [[minx, miny], [maxx, maxy]], "zones": out_zones,
             "gates": gates, "officer_bbox": OFFICER_BBOX, "cameras": cam_list,
@@ -99,6 +112,12 @@ def create_app(broker_host: str = "127.0.0.1", broker_port: int = 1883) -> FastA
     @app.get("/api/config")
     async def api_config():
         return JSONResponse(build_config())
+
+    @app.get("/api/cam/{cam_id}.jpg")
+    async def cam_frame(cam_id: str):
+        data = framebus.get(cam_id) or _placeholder_jpg()
+        return Response(content=data, media_type="image/jpeg",
+                        headers={"Cache-Control": "no-store"})
 
     @app.post("/api/gate/override")
     async def override(body: dict):

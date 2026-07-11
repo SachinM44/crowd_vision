@@ -70,7 +70,7 @@ function buildCamPreviews() {
       img.src = c.shot_url + (c.shot_url.includes("?") ? "&" : "?") + "t=" + Date.now();
     };
     refresh();
-    setInterval(refresh, 1500);   // live preview; each phone frame is one GET
+    setInterval(refresh, 1000);   // live annotated preview (video + person boxes)
   });
 }
 

@@ -26,6 +26,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+# Real CPU person detection for the live-camera bridge (tools/live_capture.py).
+# Optional: without it, live capture falls back to a motion-occupancy proxy.
+# This is the plan's detector (Ultralytics YOLOv8, AGPL-3.0 — see THIRD_PARTY).
+live = ["ultralytics>=8.2"]
 
 # --- Packaging: keep the v9 §i top-level layout literal. -------------------
 # The repo root IS the `crowdvision` package (package-dir maps it to ".").
