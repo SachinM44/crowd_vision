@@ -19,7 +19,7 @@ libGemmaModelConstraintProvider.so
 *.key
 
 # --- Confidential build docs — NEVER push (team-internal PDFs) -------------
-resource/
+
 
 # --- Android build artifacts -----------------------------------------------
 *.apk
