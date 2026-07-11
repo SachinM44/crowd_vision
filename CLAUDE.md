@@ -107,6 +107,12 @@ pytest sim/tests                 # headless message-loop tests
 ## Current Status (keep updated — teammates inherit this)
 _Last updated: 2026-07-11 (Sat, build day) by Gamma._
 
+**TL;DR for Alpha/Beta:** the whole **Gamma lane (glue) is done and on `origin/main`** —
+broker, sim mesh, dashboard, venue tier, benches, calibration. `git pull --rebase`,
+`pip install -e .`, run `python -m crowdvision.sim --all`, open http://localhost:8000,
+then build YOUR lane against these MQTT topics (`docs/MESSAGES.md`). The judges'
+3-command path already works end-to-end with zero hardware.
+
 **Scaffold (Phase A):** ✅ DONE, pushed to `origin/main`.
 - Packaging (`pip install -e .` verified), `crowdvision._lib`, full `docs/MESSAGES.md`, all lane stubs, config templates, `TEAM_START.md`, README/LICENSE/THIRD_PARTY/.gitignore.
 
@@ -118,7 +124,11 @@ _Last updated: 2026-07-11 (Sat, build day) by Gamma._
 - ✅ **B6 network/e2e/cloud benches** (`bench/`) — `net_bench.py` (MQTT throughput + RTT), `cloud_rtt_bench.py` (venue advisory RTT, honest backend), `e2e_bench.py` (density→gate, sim). `embed.py` auto-fills `docs/BENCHMARKS.md` markers from `bench/out/*.json` — **no hand-typed numbers**. Current: e2e density→gate p50 ~8 ms / p95 ~9 ms (sim), MQTT ~960 msg/s. Alpha/Beta fill the NPU/mesh/gate/FunctionGemma markers.
 - ✅ **B5 `tools/calibrate.py`** — interactive 4-click homography (`cv2.getPerspectiveTransform`) → writes into `config/cameras.yaml`; `--verify` overlays a 1 m floor grid; non-interactive `--image/--image-points/--floor-size` path for scripting/headless. Verified: image corners map exactly onto the floor rectangle. Config templates (`zones/cameras/playbooks/devices/.env.example`) done earlier.
 
-**Gamma lane: COMPLETE (B1–B6).** Core demo runs end-to-end in sim with zero hardware.
+**Gamma lane: COMPLETE (B1–B6), all on `origin/main`.** Core demo runs end-to-end in sim with zero hardware. `pytest sim/tests` = 6 passed.
+
+**What each other lane plugs into (all live on the broker now):**
+- **Alpha** — replace the sim: publish real `zone.density.update` + `camera.health` from `zone-brain/vision/*`; run the real engine (`zone-brain/engine/*`) instead of `sim --feeds` (the sim decider is only for `--all`). Everything you emit shows on the dashboard immediately.
+- **Beta** — subscribe `cv/gate/{id}/cmd`, publish `cv/gate/{id}/telemetry`; subscribe `cv/dispatch/{officer_id}`, publish `officer.beacon` + `incident.new`. `sim_gate`/`sim_officer` mirror your exact topics — diff against them.
 
 **Integrate now:** run `python -m crowdvision.sim --all`, open http://localhost:8000, then point your lane's MQTT at `127.0.0.1:1883` and code to `docs/MESSAGES.md`.
 
