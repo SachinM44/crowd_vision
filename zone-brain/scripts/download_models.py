@@ -35,16 +35,16 @@ WEIGHTS = REPO / "weights"
 # out of the repo. Populated by Alpha as exports land (AI Hub, HuggingFace).
 MODELS = {
     "yolov8n-det-int8-qnn": ("vision/yolov8n_det_int8.onnx",
-                             "Ultralytics AGPL-3.0 — weights excluded from the MIT repo"),
+                             "Ultralytics AGPL-3.0 -- weights excluded from the MIT repo"),
     "functiongemma-270m":   ("phone/Mobile_actions_q8_ekv1024.litertlm",
-                             "Gemma Terms of Use — not MIT-relicensable"),
+                             "Gemma Terms of Use -- not MIT-relicensable"),
 }
 
 
 def ensure_installed() -> None:
     try:
         import crowdvision  # noqa: F401
-        print("crowdvision already importable — skipping editable install.")
+        print("crowdvision already importable -- skipping editable install.")
         return
     except ImportError:
         print("Installing crowdvision (editable) + approved dependencies ...")
