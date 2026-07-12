@@ -1,5 +1,5 @@
 # CrowdVision — autonomous crowd-crush prevention on the Snapdragon edge
-*Snapdragon Multiverse Hackathon 2026, Bengaluru · Top Prize submission*
+*Snapdragon Multiverse Hackathon 2026, Bengaluru *
 
 Crowds form dangerous densities minutes before humans react. CrowdVision watches
 **five camera feeds at once on a Snapdragon X Elite NPU** — one shared Hexagon
@@ -18,14 +18,14 @@ advisories, post-event report) that the safety loop never depends on.
 | Priya Kusuma | priyakusuma724@gmail.com |
 | Subhasis Jena | subhasisjena42023@gmail.com |
 | Santhosh S | ssanthoshs418@gmail.com |
-| Swasth | swasthx.tech@gmail.com |
+
 
 ## Architecture
 ![CrowdVision edge architecture — technical implementation and data flow](docs/architecture.png)
 
-## Judges: the 5-minute path (zero hardware, zero phones)
+set up guide 
 ```bash
-git clone https://github.com/<org>/crowdvision && cd crowdvision
+git clone https://github.com/SachinM44/crowd_vision && cd crowdvision
 python zone-brain/scripts/download_models.py        # or --local <path>; also does `pip install -e .`
 python -m crowdvision.sim --all
 ```
@@ -45,7 +45,7 @@ changes**. (The dashboard is a URL — open it from any device on the LAN.)
    Calibrate each: `python tools/calibrate.py --camera c1` (repeat `c2..c4`);
    profiles land in `config/cameras.yaml`.
 3. **Gate node** (Arduino UNO Q, powered from the PC's USB-C):
-   `arduino-app-cli app start ./gate-node`  (Modulinos optional, auto-detected).
+   `arduino-app-cli app start ./gate-node`  
 4. **Officer phone** (Android): `adb install Releases/field-app.apk`.
    FunctionGemma fetched on first run or sideloaded. A second Android = second officer.
 5. **Venue tier** (optional — fully functional without it): set `AISUITE_ENDPOINT`
@@ -61,11 +61,13 @@ changes**. (The dashboard is a URL — open it from any device on the LAN.)
 | Phone NPU capability | OnePlus 15 | Gemma-4-E2B sm8750 build probed on Hexagon v81 — result + numbers in `docs/BENCHMARKS.md`; documented as the production upgrade path |
 | Venue fusion + trilingual PA | Cloud AI 100 | REST — additive tier, never in the safety path |
 
+*Drive Link : https://drive.google.com/drive/folders/1XmlsZsfhiL1SeneVA3QshbhcgVe21ys9?usp=sharing *
+
 ## Benchmarks
 `docs/BENCHMARKS.md` (auto-generated): NPU-vs-CPU per-frame · 5-feed sustained
 aggregate inferences/s + effective fps/feed · e2e frame → gate p50/p95 ·
 FunctionGemma TTFT + tok/s · hotspot throughput + RTSP drop rate · battery-delta
-per power profile · committed `verify_npu.py` output.
+per power profile ·  `verify_npu.py` output.
 
 ## Tests · Notes · References
 `pytest sim/tests` verifies the message loop headless.
