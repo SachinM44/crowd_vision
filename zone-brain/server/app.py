@@ -22,7 +22,6 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_HERE))
 
-import cv2  # noqa: E402
 import numpy as np  # noqa: E402
 from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
@@ -31,17 +30,50 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from crowdvision._lib import config, framebus  # noqa: E402
 from mqtt_bridge import DashboardBridge  # noqa: E402  (same dir; on sys.path[0])
 
+# cv2 is OPTIONAL here: it only draws the "connecting camera" placeholder tile.
+# opencv-python ships no win-arm64 wheel, and the dashboard is on the judges'
+# path on exactly that host (X Elite) — so the dashboard must never depend on it.
+try:
+    import cv2  # noqa: E402
+except ImportError:  # pragma: no cover - platform dependent
+    cv2 = None
+
 _PLACEHOLDER = None
+_PLACEHOLDER_TYPE = "image/jpeg"
 
 
-def _placeholder_jpg() -> bytes:
-    global _PLACEHOLDER
+def _bmp_bytes(w: int, h: int, rgb: tuple[int, int, int]) -> bytes:
+    """Encode a solid-colour BMP with the stdlib — no cv2, no Pillow.
+
+    BMP because it is the only raster format that is trivially correct to write
+    by hand; browsers render it happily.
+    """
+    import struct
+    row = bytes(rgb[::-1]) * w                       # BMP rows are BGR
+    pad = (-len(row)) % 4
+    raw = (row + b"\x00" * pad) * h
+    size = 14 + 40 + len(raw)
+    header = struct.pack("<2sIHHI", b"BM", size, 0, 0, 54)
+    info = struct.pack("<IiiHHIIiiII", 40, w, -h, 1, 24, 0, len(raw), 2835, 2835, 0, 0)
+    return header + info + raw
+
+
+def _placeholder_image() -> tuple[bytes, str]:
+    """(bytes, media_type) for a camera tile with no frame yet."""
+    global _PLACEHOLDER, _PLACEHOLDER_TYPE
     if _PLACEHOLDER is None:
-        img = np.full((270, 480, 3), 28, np.uint8)
-        cv2.putText(img, "connecting camera...", (110, 140),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (120, 120, 120), 2)
-        _PLACEHOLDER = cv2.imencode(".jpg", img)[1].tobytes()
-    return _PLACEHOLDER
+        if cv2 is not None:
+            img = np.full((270, 480, 3), 28, np.uint8)
+            cv2.putText(img, "connecting camera...", (110, 140),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (120, 120, 120), 2)
+            _PLACEHOLDER = cv2.imencode(".jpg", img)[1].tobytes()
+            _PLACEHOLDER_TYPE = "image/jpeg"
+        else:
+            # Small: BMP is uncompressed and this endpoint is polled. The tile is
+            # a flat colour, so the browser upscales it with no visible change.
+            _PLACEHOLDER = _bmp_bytes(32, 18, (28, 28, 28))
+            _PLACEHOLDER_TYPE = "image/bmp"
+    return _PLACEHOLDER, _PLACEHOLDER_TYPE
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -123,8 +155,12 @@ def create_app(broker_host: str = "127.0.0.1", broker_port: int = 1883) -> FastA
 
     @app.get("/api/cam/{cam_id}.jpg")
     async def cam_frame(cam_id: str):
-        data = framebus.get(cam_id) or _placeholder_jpg()
-        return Response(content=data, media_type="image/jpeg",
+        data = framebus.get(cam_id)
+        if data:
+            media_type = "image/jpeg"          # real frames are always JPEG
+        else:
+            data, media_type = _placeholder_image()
+        return Response(content=data, media_type=media_type,
                         headers={"Cache-Control": "no-store"})
 
     @app.post("/api/gate/override")

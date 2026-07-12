@@ -21,12 +21,19 @@ libGemmaModelConstraintProvider.so
 *.key
 
 # --- Confidential build docs — NEVER push (team-internal PDFs) -------------
-
+# This section was EMPTY, so resource/ was still tracked. The hackathon rules
+# (§17) make status/progress material confidential and the repo goes public.
+resource/
+*.pdf
 
 # --- Android build artifacts -----------------------------------------------
 *.apk
 *.aab
 *.keystore
+.gradle/
+local.properties
+field-app/app/libs/
+field-app/app/src/main/jniLibs/
 
 # --- Python ----------------------------------------------------------------
 __pycache__/

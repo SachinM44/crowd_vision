@@ -174,6 +174,53 @@ sim_officer mirror the exact topics) **+ X Elite hardware steps** (alpha.md §7:
 setup.ps1, model staging, verify_npu, RTSP+calibration, --require-npu, real benches).
 
 ## Current Status (keep updated — teammates inherit this)
+_Last updated: 2026-07-12 (Sun) by Beta — **Beta lane BUILT; 4 platform bugs fixed.**_
+
+### Beta lane: DONE (was the only unbuilt lane)
+- **`gate-node/`** — `python/main.py` fully implemented: paho 2.x, LWT before
+  connect, retained-command **TTL discard**, Bridge RPC actuation, ACK telemetry
+  (`actuated_ms>0`, echoes `triggered_by`/`playbook_id`) + 1 Hz steady state,
+  reconnect backoff, Modulino auto-detect, `--bench`. **Dual-mode**: real
+  `arduino.app_bridge` on the UNO Q, `MockBridge` on a laptop — and provenance
+  says which (`deterministic-mcu` vs `mock-bridge (laptop)`).
+  `sketch/sketch.ino` implemented: `Bridge.provide` × 4, one **`STATE_TABLE`**
+  holding every state's colour + matrix pattern, `millis()` SAFE_FLASH blink,
+  15 s watchdog → holds LAST_SAFE. **Per-pulse colour is fixed in ONE place**:
+  flip `SWAP_RG` if red/green are swapped (GRB LEDs), tune `COLOR_SCALE`.
+  Board-specific LED/matrix calls go in the `rgbShow`/`matrixShow` shims.
+  _Verified against the sim: ACK+echo, stale retained cmd discarded, LWT fires._
+- **`field-app/`** — full Kotlin app (Views, no Compose): foreground service,
+  AOSP LocationManager beacons (never fabricates a position), dispatch→ack loop,
+  incident screen with FunctionGemma (`-PwithLlm=true`, badge `litert-gpu`) +
+  schema gate (invalid ⇒ **no-op**) + dropdown-form fallback, E2B probe,
+  benches. Builds to an APK with CLI Gradle (no Android Studio needed).
+  _Verified without a phone_: `gradle :app:test` (schema/parser/structurer),
+  `tools/check_field_contract.py` (the app's real messages through the REAL
+  `validate_envelope`), and `MqttLiveTest` (the shipped Paho client acking a
+  live dispatch off the broker).
+
+### Bugs found + fixed (all pre-existing, all on the demo path)
+1. **`detect_qnn` badged the NPU while running on the CPU.** In onnxruntime 2.x
+   the QNN EP is a *plugin* EP: `InferenceSession(providers=["QNNExecutionProvider"])`
+   is **silently ignored** → you get `['CPUExecutionProvider']` on a machine whose
+   NPU is plainly visible. The badge came from `get_ep_devices()` alone, so it
+   would have stamped `qnn-npu-hexagon-v73` on CPU work (Hard Rule 2 violation).
+   Fixed: bind via `SessionOptions.add_provider_for_devices()`, then derive the
+   badge from the session's **actual** `get_providers()`. `zone-brain/scripts/npu_smoke.py`
+   proves real ops execute on the Hexagon and the badge is earned.
+2. **`pip install -e .` failed on Windows ARM64** — i.e. the judges' first
+   command, on our own target device. `opencv-python` has **no win-arm64 wheel**
+   and its sdist build needs MSVC. Moved to the `[vision]` extra.
+3. **The dashboard imported cv2 at module level**, so on the X Elite `sim --all`
+   ran with *no dashboard* (the error is swallowed). cv2 there only drew a
+   placeholder tile → now optional, with a stdlib BMP fallback.
+4. **cv2 removed from the inference path** (`detect_qnn` letterbox+NMS,
+   `homography.to_floor`/`perspective_from_points` → numpy). The vision pipeline
+   now runs on win-arm64. **Still cv2-only: `capture.py` (RTSP decode)** — real
+   cameras need cv2, which cannot be pip-installed on ARM64. See Blockers.
+5. **`resource/` PDFs were still tracked** — `.gitignore`'s "never push" section
+   was empty. Untracked + ignored (history purge is still a team decision).
+
 _Last updated: 2026-07-11 (Sat, build day) by Gamma._
 
 **TL;DR for Alpha/Beta:** the whole **Gamma lane (glue) is done and on `origin/main`** —
@@ -203,4 +250,21 @@ then build YOUR lane against these MQTT topics (`docs/MESSAGES.md`). The judges'
 
 **⚠️ Compliance:** the `resource/` PDFs were pushed earlier (commit 8e666da) and are on GitHub. `.gitignore` blocks them going forward; purge/private decision pending with Sachin.
 
-**Blockers:** none.
+**Blockers / next actions (need a human or the venue hardware):**
+1. **Stage the models.** Not on this laptop: `weights/vision/yolov8n_det_int8.onnx`
+   (AI Hub export — must be exported on x86/WSL2; torch has no win-arm64 wheel)
+   and `Mobile_actions_q8_ekv1024.litertlm` (FunctionGemma). Everything around
+   them is wired and proven; only the files are missing.
+   `python zone-brain/scripts/download_models.py --local <dir>`
+2. **`config/.env`** exists but `AISUITE_ENDPOINT`/`AISUITE_KEY` are blank, so the
+   venue advisory is honestly badged `template-local`. Fill them → `cloud-ai100`.
+3. **Real cameras need cv2, which will not install on the X Elite** (win-arm64).
+   Options: run `capture.py` on an x64 box, or swap the RTSP decode for
+   `imageio-ffmpeg`/an `ffmpeg` subprocess (needs the dep sign-off in HARD RULES).
+   The NPU, engine, gates, officers, dashboard and benches are all cv2-free now.
+4. **README team table still has 4 placeholder names/emails** — Rules §7.c.ii
+   makes this a submission blocker.
+5. **`resource/` PDFs are still in git history** (commit 8e666da) and the repo
+   goes public. Untracking stops new pushes; purging history is Sachin's call.
+6. On the board: paste the working LED/matrix calls into `sketch.ino`'s
+   `rgbShow`/`matrixShow` shims and confirm the App Lab manifest keys + FQBN.

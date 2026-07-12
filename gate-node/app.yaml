@@ -1,20 +1,26 @@
 # gate-node/app.yaml — Arduino App Lab manifest for the UNO Q gate node.
-# OWNER: Beta (TODO(beta)). Contract stub.
+# OWNER: Beta.
 #
 # Start on the board:  arduino-app-cli app start ./gate-node
 # Logs:                arduino-app-cli app logs  ./gate-node
 # Stop:                arduino-app-cli app stop  ./gate-node
 #
-# The app has two halves that talk over the Bridge (RPC):
-#   python/main.py   (MPU, Linux): MQTT client + fail-safe state machine + LWT
-#   sketch/sketch.ino (MCU): matrix arrows / RGB / chirp via Bridge.provide(...)
+# Two halves talking over the Bridge (RPC):
+#   python/main.py    (MPU, Debian): MQTT client + TTL guard + LWT + telemetry
+#   sketch/sketch.ino (MCU, STM32U585): matrix arrows / RGB / chirp, LAST_SAFE
 #
-# Modulinos (Knob/Buzzer/Thermo) are OPTIONAL and behind feature flags —
-# auto-detected, never a hard dependency.
+# The MPU needs the broker's LAN IP (the laptop) — 127.0.0.1 is the UNO Q
+# itself and will never reach the broker. Set it here or pass --broker.
+# Modulinos (Knob/Buzzer/Thermo) are OPTIONAL — auto-detected, never required.
 name: crowdvision-gate-node
-version: 0.9.0
+version: 1.0.0
 runtime:
   python: python/main.py
   sketch: sketch/sketch.ino
-# TODO(beta): confirm exact App Lab manifest keys from the UNO Q User Manual /
-# built-in examples (they vary by App Lab version — pin, never invent).
+env:
+  CV_BROKER_HOST: "192.168.1.10"   # TODO(venue): laptop LAN IP from `ipconfig`
+  CV_BROKER_PORT: "1883"
+  CV_GATE_ID: "G3"
+# NOTE(beta): App Lab manifest keys vary by version. If `arduino-app-cli app
+# start` rejects a key, copy the exact schema from a built-in example app on the
+# board and keep the values above — do not invent keys.

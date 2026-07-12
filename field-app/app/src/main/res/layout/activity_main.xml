@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CrowdVision — Field Officer"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Connection -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/brokerHost"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:hint="broker LAN IP"
+                android:inputType="text"
+                android:importantForAutofill="no" />
+
+            <EditText
+                android:id="@+id/officerId"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1.4"
+                android:hint="officer id"
+                android:inputType="text"
+                android:importantForAutofill="no" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnGoOnDuty"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Go on duty" />
+
+            <Button
+                android:id="@+id/btnOffDuty"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Off duty" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/statusView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="monospace"
+            android:text="offline"
+            android:textSize="13sp" />
+
+        <!-- Dispatch -->
+        <TextView
+            android:id="@+id/dispatchView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="#22000000"
+            android:padding="10dp"
+            android:text="No active dispatch"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnClearDispatch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Mark handled → available" />
+
+        <!-- Incident: AI path -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Report an incident"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/incidentText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="e.g. man collapsed near gate 2 barrier, crowd gathering"
+            android:inputType="textMultiLine"
+            android:minLines="2"
+            android:importantForAutofill="no" />
+
+        <Button
+            android:id="@+id/btnStructureSend"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Structure + send" />
+
+        <TextView
+            android:id="@+id/aiResultView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:padding="6dp"
+            android:text=""
+            android:textSize="12sp" />
+
+        <!-- Incident: zero-AI fallback on the SAME screen -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Fallback form (no model)"
+            android:textSize="15sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Spinner
+                android:id="@+id/spinnerType"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <Spinner
+                android:id="@+id/spinnerSeverity"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/formLocation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="location hint (e.g. Gate 3)"
+            android:inputType="text"
+            android:importantForAutofill="no" />
+
+        <EditText
+            android:id="@+id/formNeeds"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="needs, comma separated (e.g. medic, stretcher)"
+            android:inputType="text"
+            android:importantForAutofill="no" />
+
+        <Button
+            android:id="@+id/btnFormSend"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Send form report" />
+
+        <!-- Bench / debug -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnImportModel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Import model" />
+
+            <Button
+                android:id="@+id/btnBench"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Run bench" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnE2bProbe"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="E2B NPU probe (benchmark only)" />
+
+        <TextView
+            android:id="@+id/benchView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:padding="6dp"
+            android:text=""
+            android:textSize="11sp" />
+    </LinearLayout>
+</ScrollView>

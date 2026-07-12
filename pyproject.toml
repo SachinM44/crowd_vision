@@ -13,6 +13,12 @@ authors = [{ name = "CrowdVision Team" }]
 
 # Approved dependency set (Gamma lane = pure-Python only; Windows ARM64 safe).
 # Do not add dependencies beyond this set without team sign-off.
+#
+# opencv-python is NOT here on purpose: it publishes no win-arm64 wheel, so on
+# the X Elite (our own target host!) pip falls back to an sdist build, which
+# needs MSVC + a from-source numpy and fails. That broke the judges' first
+# command. cv2 is only ever needed by the camera/vision path, and every module
+# that uses it imports it lazily — so it lives in the [vision] extra instead.
 dependencies = [
     "paho-mqtt>=2.0",
     "amqtt>=0.11",          # pure-Python broker (sim/dev + fallback); mosquitto is the venue broker
@@ -21,11 +27,15 @@ dependencies = [
     "websockets>=12.0",
     "pyyaml>=6.0",
     "numpy>=1.26",
-    "opencv-python>=4.9",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+# Camera capture + calibration + the QNN detector's pre/post-processing.
+# Needed only for the REAL camera path; the sim and dashboard run without it.
+# No win-arm64 wheel exists — on the X Elite, install cv2 from the staged
+# wheelhouse (zone-brain/scripts/setup.ps1) rather than from the index.
+vision = ["opencv-python>=4.9"]
 # Real CPU person detection for the live-camera bridge (tools/live_capture.py).
 # Optional: without it, live capture falls back to a motion-occupancy proxy.
 # This is the plan's detector (Ultralytics YOLOv8, AGPL-3.0 — see THIRD_PARTY).

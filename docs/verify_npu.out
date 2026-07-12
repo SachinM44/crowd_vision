@@ -2,3 +2,19 @@
 onnxruntime-qnn not available: No module named 'onnxruntime'
 Install the pinned win-arm64 wheelhouse via setup.ps1 on the X Elite.
 RESULT: QNN EP absent (expected on dev machine; exit 3)
+# verify_npu.py  @ 2026-07-12T06:03:37+05:30
+onnxruntime 1.27.0; 4 EP device(s):
+  - ep=CPUExecutionProvider  type=OrtHardwareDeviceType.CPU
+  - ep=QNNExecutionProvider  type=OrtHardwareDeviceType.NPU
+  - ep=QNNExecutionProvider  type=OrtHardwareDeviceType.GPU
+  - ep=QNNExecutionProvider  type=OrtHardwareDeviceType.CPU
+NPU device found: True
+RESULT: PASS — QNN NPU EP confirmed; demo path safe to use require_npu=True
+# verify_npu.py  @ 2026-07-12T07:25:47+05:30
+onnxruntime 1.27.0; 4 EP device(s):
+  - ep=CPUExecutionProvider  type=OrtHardwareDeviceType.CPU
+  - ep=QNNExecutionProvider  type=OrtHardwareDeviceType.NPU
+  - ep=QNNExecutionProvider  type=OrtHardwareDeviceType.GPU
+  - ep=QNNExecutionProvider  type=OrtHardwareDeviceType.CPU
+NPU device found: True
+RESULT: PASS — QNN NPU EP confirmed; demo path safe to use require_npu=True
