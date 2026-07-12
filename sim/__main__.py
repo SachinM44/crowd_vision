@@ -141,8 +141,13 @@ def main(argv=None) -> int:
             from . import sim_feeds
             comps.append((f"surge:{args.surge_zone}",
                           sim_feeds.run_surge(host, port, args.surge_zone)))
-        live = _load_live_capture()
-        comps.append(("live-capture", live.run(host, port)))
+        try:
+            live = _load_live_capture()
+            comps.append(("live-capture", live.run(host, port)))
+        except Exception as exc:  # noqa: BLE001 — cv2 has no win-arm64 wheel
+            print(f"[sim] live capture cannot run in-process here ({exc}).")
+            print("[sim] Run it out-of-process instead (everything else is up):")
+            print("[sim]   wsl -e bash tools/run_live_wsl.sh    # cv2/YOLO via WSL")
     else:
         # Import lazily so single-component runs don't import everything.
         if (args.all or args.gate) and not args.no_gate and sim_gate_ids:
