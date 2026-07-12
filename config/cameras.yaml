@@ -20,6 +20,9 @@ cameras:
   c1:                           # Samsung phone -> Zone B (live, IP Webcam snapshot)
     transport: ipwebcam         # polls http://IP:8080/shot.jpg (robust over slow links)
     url: "http://10.149.252.145:8080"   # session-specific LAN IP — update per venue
+    # No phones? point url at tools/fake_ipcam.py (http://127.0.0.1:8090) to
+    # drive this feed with real CrowdHuman frames — the whole live path tested
+    # that way (WSL capture -> YOLO -> density RED) on 2026-07-12.
     zone_id: B
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 

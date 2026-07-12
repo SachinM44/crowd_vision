@@ -261,7 +261,19 @@ class LiveFeed:
             if now - last_pub >= 1.0 and latest is not None:
                 fps = frames / max(now - last_pub, 1e-6)
                 frames = 0
-                res = self.det.detect(latest)
+                try:
+                    res = self.det.detect(latest)
+                except Exception as exc:  # noqa: BLE001
+                    # A detector crash must NEVER silently kill this feed's
+                    # thread (that leaves the zone with no messages at all —
+                    # worse than an honest UNKNOWN). Log, degrade to the
+                    # motion fallback, keep the loop alive (Hard Rule 7).
+                    print(f"[live] {self.camera_id}: detector crashed "
+                          f"({type(exc).__name__}: {exc}) -> motion fallback")
+                    self.det = MotionDetector()
+                    self._publish_unknown(fps, transport, "detector crashed")
+                    last_pub = now
+                    continue
                 if res.get("blocked"):
                     self._annotate(latest, res, 0, M.RISK_UNKNOWN)
                     self._publish_unknown(fps, transport, "view blocked/dark")
@@ -352,7 +364,14 @@ def run(host="127.0.0.1", port=1883) -> LiveCapture:
 
 
 if __name__ == "__main__":
-    cap = run()
+    import argparse
+    ap = argparse.ArgumentParser(description="live camera bridge (standalone)")
+    ap.add_argument("--host", default="127.0.0.1",
+                    help="broker host — from WSL use the Windows host IP "
+                         "(ip route show default), never 127.0.0.1")
+    ap.add_argument("--port", type=int, default=1883)
+    args = ap.parse_args()
+    cap = run(host=args.host, port=args.port)
     print("[live] capturing real video -> detection -> MQTT. Ctrl+C to stop.")
     try:
         while True:
