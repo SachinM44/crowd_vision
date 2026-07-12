@@ -17,24 +17,24 @@ cameras:
     # Identity homography until calibrated (image px == floor m placeholder).
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
-  c1:                           # Samsung phone -> Zone B (live, IP Webcam snapshot)
+  c1:                           # Nothing phone (hotspot host) -> Zone B (IP Webcam)
     transport: ipwebcam         # polls http://IP:8080/shot.jpg (robust over slow links)
-    url: "http://10.149.252.145:8080"   # session-specific LAN IP — update per venue
+    url: "http://10.149.252.155:8080"   # session-specific LAN IP — update per venue
     # No phones? point url at tools/fake_ipcam.py (http://127.0.0.1:8090) to
     # drive this feed with real CrowdHuman frames — the whole live path tested
     # that way (WSL capture -> YOLO -> density RED) on 2026-07-12.
     zone_id: B
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
-  c2:                           # Nothing phone -> Zone C (live, IP Webcam snapshot)
+  c2:                           # second camera phone -> Zone C (add URL when available)
     transport: ipwebcam
-    url: "http://10.149.252.155:8080"   # IP changes per network — re-run tools/find_cameras.py
+    url: "http://PHONE_C2_IP:8080"      # placeholder => skipped cleanly by live capture
     zone_id: C
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
-  c3:                           # Laptop webcam -> Zone D (live)
+  c3:                           # Laptop webcam -> Zone D (no /dev/video0 in WSL)
     transport: webcam
-    url: 0                       # 0 = default laptop camera
+    url: "PHONE_C3_IP"           # placeholder => skipped (decode runs in WSL, no webcam there)
     zone_id: D
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
