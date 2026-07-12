@@ -14,13 +14,14 @@ advisories, post-event report) that the safety loop never depends on.
 ## Team
 | Name | Email |
 |---|---|
-| _&lt;member 1&gt; (Team Lead)_ | _&lt;email&gt;_ |
-| _&lt;member 2&gt;_ | _&lt;email&gt;_ |
-| _&lt;member 3&gt; (Gamma)_ | swasthx.tech@gmail.com |
-| _&lt;member 4&gt;_ | _&lt;email&gt;_ |
-| _&lt;member 5&gt;_ | _&lt;email&gt;_ |
+| Sachin | sachin69778@gmail.com |
+| Priya Kusuma | priyakusuma724@gmail.com |
+| Subhasis Jena | subhasisjena42023@gmail.com |
+| Santhosh S | ssanthoshs418@gmail.com |
+| Swasth | swasthx.tech@gmail.com |
 
-_(All Eligible Individuals listed — Rules §7.c.ii. **Verify the 5th entry is present before submission.**)_
+## Architecture
+![CrowdVision edge architecture — technical implementation and data flow](docs/architecture.png)
 
 ## Judges: the 5-minute path (zero hardware, zero phones)
 ```bash

@@ -32,9 +32,9 @@ cameras:
     zone_id: C
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
-  c3:                           # Laptop webcam -> Zone D (no /dev/video0 in WSL)
-    transport: webcam
-    url: "PHONE_C3_IP"           # placeholder => skipped (decode runs in WSL, no webcam there)
+  c3:                           # Laptop webcam -> Zone D via tools/webcam_ipcam.py
+    transport: ipwebcam          # ffmpeg grabs the webcam, relay serves /shot.jpg
+    url: "http://172.23.128.1:8091"   # the Windows host as seen FROM WSL (decoder side)
     zone_id: D
     homography: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
