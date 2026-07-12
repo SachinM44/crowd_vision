@@ -79,11 +79,16 @@ dependencies {
     testImplementation("org.json:json:20240303")
 
     if (withLlm) {
-        // LiteRT-LM: the .litertlm runtime for FunctionGemma 270M.
-        // If the Maven coordinate does not resolve in your environment, drop the
-        // LiteRT-LM AAR from the official release into app/libs/ — the fileTree
-        // below picks it up and FunctionGemmaStructurer compiles unchanged.
-        implementation("com.google.ai.edge.litert:litert:2.1.4")
+        // The .litertlm runtime. Verified against Google Maven (2026-07-12):
+        // com.google.ai.edge.litert publishes NO litert-lm artifact, so the
+        // runtime that actually loads .litertlm bundles on-device is MediaPipe
+        // GenAI (LlmInference) — LiteRT underneath, bound by LlmEngine via
+        // reflection. Deliberately NOT depending on litert:2.1.4: its AAR
+        // carries Kotlin 2.3 metadata (breaks our 2.0.x compile), and without
+        // a litert-lm engine its Backend types are dead weight. The E2B probe
+        // path activates only when a LiteRT-LM AAR (with its own classes) is
+        // dropped into app/libs/.
+        implementation("com.google.mediapipe:tasks-genai:0.10.35")
         implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
     }
 }

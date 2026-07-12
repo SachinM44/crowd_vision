@@ -251,11 +251,19 @@ then build YOUR lane against these MQTT topics (`docs/MESSAGES.md`). The judges'
 **⚠️ Compliance:** the `resource/` PDFs were pushed earlier (commit 8e666da) and are on GitHub. `.gitignore` blocks them going forward; purge/private decision pending with Sachin.
 
 **Blockers / next actions (need a human or the venue hardware):**
-1. **Stage the models.** Not on this laptop: `weights/vision/yolov8n_det_int8.onnx`
-   (AI Hub export — must be exported on x86/WSL2; torch has no win-arm64 wheel)
-   and `Mobile_actions_q8_ekv1024.litertlm` (FunctionGemma). Everything around
-   them is wired and proven; only the files are missing.
-   `python zone-brain/scripts/download_models.py --local <dir>`
+1. ~~Stage the models~~ **DONE (Sun, Beta):** both models are staged in gitignored
+   `weights/`. YOLO INT8 was produced ON this machine via WSL —
+   `zone-brain/scripts/export_yolo_wsl.sh` (ultralytics export → ORT static QDQ,
+   calibrated on the 60 real CrowdHuman images from
+   github.com/Santhosh121805/crwoddata, Detect head kept float or the model goes
+   blind). **Verified on the Hexagon NPU with a real crowd photo** through
+   `build_session(require_npu=True)`; `detect_bench`: NPU 4.3 ms mean vs CPU
+   19.6 ms = **4.6×**, embedded in BENCHMARKS. FunctionGemma
+   (`Mobile_actions_q8_ekv1024.litertlm`, 271 MB) downloaded from the public
+   `litert-community` HF repo. The LLM APK builds with
+   `-PwithLlm=true` via `com.google.mediapipe:tasks-genai:0.10.35` (Google Maven
+   has NO litert-lm artifact, and `litert:2.1.4` carries Kotlin 2.3 metadata that
+   breaks a 2.0.x compile — do not re-add it).
 2. **`config/.env`** exists but `AISUITE_ENDPOINT`/`AISUITE_KEY` are blank, so the
    venue advisory is honestly badged `template-local`. Fill them → `cloud-ai100`.
 3. **Real cameras need cv2, which will not install on the X Elite** (win-arm64).

@@ -74,7 +74,8 @@ def _qnn_attached() -> bool:
 
 
 def build_session(model_path: str, *, performance_mode: str = "burst",
-                  require_npu: bool = False) -> DetectSession:
+                  require_npu: bool = False,
+                  force_cpu: bool = False) -> DetectSession:
     """Create the single shared session. Refuses silent CPU fallback.
 
     The badge is derived from the session's ACTUAL providers, never from mere
@@ -86,7 +87,9 @@ def build_session(model_path: str, *, performance_mode: str = "burst",
     stamped 'qnn-npu-hexagon-v73' on CPU inference (Hard Rule 2 violation).
     Plugin EPs must be bound with SessionOptions.add_provider_for_devices().
     """
-    devices = _qnn_npu_devices()
+    if force_cpu and require_npu:
+        raise ValueError("force_cpu and require_npu are mutually exclusive")
+    devices = [] if force_cpu else _qnn_npu_devices()
     if not devices and require_npu:
         raise RuntimeError(
             "QNN NPU EP required (demo path) but get_ep_devices() found no NPU. "
@@ -128,8 +131,11 @@ def build_session(model_path: str, *, performance_mode: str = "burst",
                 "QNN NPU EP required (demo path) but the session actually runs on "
                 f"{sess.get_providers()}. Refusing to badge NPU for CPU work "
                 "(Hard Rule 2).")
-        print(f"[detect_qnn] *** QNN EP NOT attached — CPU EP, backend '{backend}'. "
-              "Honest dev fallback; NOT the demo path. ***")
+        if force_cpu:
+            print(f"[detect_qnn] CPU EP forced (bench baseline) — backend '{backend}'")
+        else:
+            print(f"[detect_qnn] *** QNN EP NOT attached — CPU EP, backend '{backend}'. "
+                  "Honest dev fallback; NOT the demo path. ***")
     return DetectSession(sess, backend, model_path, sess.get_inputs()[0].name)
 
 
@@ -197,11 +203,14 @@ def _letterbox(img, size):
     h, w = img.shape[:2]
     r = min(size / h, size / w)
     nh, nw = int(round(h * r)), int(round(w * r))
-    cv2 = _cv2_or_none()
-    if cv2 is not None:
-        resized = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_LINEAR)
+    if (nh, nw) == (h, w):
+        resized = img                      # already at target scale — skip resize
     else:
-        resized = _resize_bilinear(img, nw, nh)
+        cv2 = _cv2_or_none()
+        if cv2 is not None:
+            resized = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_LINEAR)
+        else:
+            resized = _resize_bilinear(img, nw, nh)
     canvas = np.full((size, size, 3), 114, dtype=np.uint8)
     top, left = (size - nh) // 2, (size - nw) // 2
     canvas[top:top + nh, left:left + nw] = resized

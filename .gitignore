@@ -50,8 +50,11 @@ venv/
 node_modules/
 
 # --- Bench outputs (regenerated; JSON embedded into BENCHMARKS.md) ---------
-bench/out/
+# **/ so zone-brain/bench/out/ is covered too (a bare bench/out/ only matched
+# the repo root — that is how mesh.json got tracked).
+**/bench/out/
 *.bench.json
+.kotlin/
 
 # --- OS / editor -----------------------------------------------------------
 .DS_Store

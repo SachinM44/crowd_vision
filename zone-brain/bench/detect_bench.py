@@ -35,15 +35,19 @@ _IMGSZ = 640
 
 
 def _bench_one(session, n: int, warmup: int) -> list[float]:
-    """Run `warmup` throwaway frames then `n` timed frames. Returns latencies (ms)."""
+    """Run `warmup` throwaway frames then `n` timed frames.
+
+    Uses the INFERENCE latency detect() itself reports (the same number the
+    density messages badge), so the NPU-vs-CPU comparison measures the EP, not
+    the shared numpy pre/post-processing around it.
+    """
     frame = np.zeros((_IMGSZ, _IMGSZ, 3), dtype=np.uint8)
     for _ in range(warmup):
         _det.detect(session, frame)
     lats = []
     for _ in range(n):
-        t0 = time.perf_counter()
-        _det.detect(session, frame)
-        lats.append((time.perf_counter() - t0) * 1000.0)
+        _, _, infer_ms = _det.detect(session, frame)
+        lats.append(infer_ms)
     return lats
 
 
@@ -86,9 +90,10 @@ def main(model_path: str | None = None) -> int:
         print("[detect_bench] QNN EP absent on this machine (expected on non-X Elite dev).")
         print("  CPU-only benchmark follows.")
 
-    # --- CPU EP (always runs for comparison) ---
+    # --- CPU EP (always runs for comparison; force_cpu so an NPU machine
+    # doesn't silently hand this leg a QNN session and fake a 1x "speedup") ---
     print(f"[detect_bench] CPU EP — benchmarking {_N} frames...")
-    sess_cpu = _det.build_session(model_path, require_npu=False)
+    sess_cpu = _det.build_session(model_path, require_npu=False, force_cpu=True)
     lats_cpu = _bench_one(sess_cpu, _N, _WARMUP)
     st = _stats(lats_cpu, "cpu")
     results.append(st)
@@ -99,12 +104,28 @@ def main(model_path: str | None = None) -> int:
         speedup = results[1]["mean_ms"] / results[0]["mean_ms"]
         print(f"  NPU speedup vs CPU: {speedup:.1f}×")
 
-    # Emit JSON.
+    # Emit JSON — including the "markdown" field bench/embed.py inlines into the
+    # BENCH:detect marker (no hand-typed numbers), mirrored to root bench/out/.
+    rows = "\n".join(
+        f"| `{r['backend']}` | {r['mean_ms']} | {r['p50_ms']} | {r['p95_ms']} | "
+        f"{r['p99_ms']} |" for r in results)
+    md = ("| backend | mean ms | p50 | p95 | p99 |\n|---|---|---|---|---|\n" + rows
+          + f"\n\n{_N} frames @640x640, INT8 (QDQ, CrowdHuman-calibrated), "
+            "inference-only latency (the number density messages badge).")
+    if len(results) == 2:
+        md += f" NPU speedup vs CPU: {results[1]['mean_ms'] / results[0]['mean_ms']:.1f}x."
+    from datetime import datetime, timedelta, timezone
+    captured = datetime.now(timezone(timedelta(hours=5, minutes=30))).isoformat(
+        timespec="seconds")
+    doc = {"bench": "detect", "warmup": _WARMUP, "frames": _N, "results": results,
+           "markdown": md, "captured_at": captured}
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = _OUT_DIR / "detect.json"
-    out.write_text(json.dumps({"bench": "detect", "warmup": _WARMUP,
-                               "frames": _N, "results": results}, indent=2))
-    print(f"[detect_bench] -> {out}")
+    out.write_text(json.dumps(doc, indent=2))
+    root_out = _ROOT.parent / "bench" / "out"
+    root_out.mkdir(parents=True, exist_ok=True)
+    (root_out / "detect.json").write_text(json.dumps(doc, indent=2))
+    print(f"[detect_bench] -> {out}  (+ mirrored to bench/out/ for embed.py)")
 
     # Return non-zero if NPU was expected but absent (CI signal).
     return 0

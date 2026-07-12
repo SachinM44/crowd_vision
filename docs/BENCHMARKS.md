@@ -12,7 +12,14 @@ inference → **balanced**; background sensing → **efficiency**. Measured, def
 
 ## 1. Detection latency — NPU vs CPU (X Elite, 300 timed frames @640² INT8)
 <!-- BENCH:detect START -->
-_pending — run `zone-brain/bench/detect_bench.py` (Alpha)._
+| backend | mean ms | p50 | p95 | p99 |
+|---|---|---|---|---|
+| `qnn-npu-hexagon-v73` | 4.26 | 4.15 | 4.39 | 5.82 |
+| `cpu` | 19.55 | 19.21 | 22.1 | 26.74 |
+
+300 frames @640x640, INT8 (QDQ, CrowdHuman-calibrated), inference-only latency (the number density messages badge). NPU speedup vs CPU: 4.6x.
+
+_captured: 2026-07-12T09:12:53+05:30_
 <!-- BENCH:detect END -->
 
 ## 2. 5-feed sustained mesh — aggregate inferences/s + effective fps/feed (10-min soak)
